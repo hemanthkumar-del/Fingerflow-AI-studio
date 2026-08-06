@@ -70,6 +70,11 @@ export class CanvasManager {
   // --- Gesture Drawing Interface --- //
 
   public beginStroke() {
+    const activeLayer = this.layers.getActiveLayer();
+    if (!activeLayer || !activeLayer.visible || activeLayer.locked) {
+      return; // Block drawing
+    }
+
     this.currentPoints = [];
     if (this.activeTempPath) {
       this.canvas.remove(this.activeTempPath);
@@ -78,6 +83,10 @@ export class CanvasManager {
   }
 
   public updateStroke(x: number, y: number, timestamp: number) {
+    const activeLayer = this.layers.getActiveLayer();
+    if (!activeLayer || !activeLayer.visible || activeLayer.locked) {
+      return null; // Block drawing
+    }
     const smoothed = this.strokeSmoother.filter(x, y, timestamp);
     this.currentPoints.push(smoothed);
 
@@ -104,8 +113,15 @@ export class CanvasManager {
         opacity: config.opacity
       });
 
+      // Tag Metadata for Layering and Export
+      (this.activeTempPath as any).id = `path-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      (this.activeTempPath as any).layerId = activeLayer.id;
+      (this.activeTempPath as any).createdAt = timestamp;
+      (this.activeTempPath as any).brushType = this.tool.getTool();
+      (this.activeTempPath as any).aiGenerated = false;
+
       this.canvas.add(this.activeTempPath);
-      this.canvas.renderAll();
+      this.layers.renderLayers(); // Ensure it renders at correct z-index
     }
     return smoothed;
   }
@@ -136,12 +152,23 @@ export class CanvasManager {
   }
 
   public toJSON() {
-    return this.canvas.toJSON();
+    return {
+      fabric: this.canvas.toJSON(['id', 'layerId', 'createdAt', 'brushType', 'aiGenerated', 'locked', 'hidden']),
+      layers: {
+        list: this.layers.getLayers(),
+        activeId: this.layers.getActiveLayerId()
+      }
+    };
   }
 
   public loadFromJSON(json: any, callback?: () => void) {
-    this.canvas.loadFromJSON(json, () => {
-      this.canvas.renderAll();
+    if (json.layers) {
+      this.layers.setLayersState(json.layers.list, json.layers.activeId);
+    }
+    const fabricJson = json.fabric || json; // Fallback for old saves
+    
+    this.canvas.loadFromJSON(fabricJson, () => {
+      this.layers.renderLayers();
       if (callback) callback();
     });
   }

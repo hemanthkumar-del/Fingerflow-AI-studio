@@ -14,6 +14,7 @@ import { AISidebar } from './AISidebar';
 import { Toast, ToastMessage } from './common/Toast';
 import { GestureOverlay, GestureOverlayProps } from './GestureOverlay';
 import { GestureSettingsModal } from './GestureSettingsModal';
+import { LayerPanel } from './LayerPanel';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -62,6 +63,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
 
+  // Layers State
+  const [layers, setLayers] = useState<any[]>([]);
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+
   // Internal refs for smooth gesture tracking loop without React state rerender lag
   const gestureEngineRef = useRef<GestureEngine>(new GestureEngine());
   const strokeSmootherRef = useRef<StrokeSmoother>(new StrokeSmoother());
@@ -93,6 +98,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     engine.eventBus.on('history:changed', (state) => {
       setCanUndo(state.canUndo);
       setCanRedo(state.canRedo);
+    });
+
+    engine.eventBus.on('layers:changed', (state) => {
+      setLayers(state.layers);
+      setActiveLayerId(state.activeLayerId);
     });
 
     // Load initial vector drawing JSON if reopening an existing drawing
@@ -459,6 +469,14 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         <GestureSettingsModal 
           onClose={() => setShowSettings(false)}
           onSave={() => setShowSettings(false)}
+        />
+      )}
+
+      {engineRef.current && (
+        <LayerPanel 
+          engine={engineRef.current}
+          layers={layers}
+          activeLayerId={activeLayerId}
         />
       )}
 
