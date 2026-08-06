@@ -47,7 +47,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateLogin }) =
   };
 
   return (
-    <AuthLayout title="Create Account" subtitle="Join FingerFlow AI Air Canvas Studio">
+    <AuthLayout title="Create Account" subtitle="Join FingerFlow Studio Air Canvas Studio">
       {error && (
         <div
           style={{

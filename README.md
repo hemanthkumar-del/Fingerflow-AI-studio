@@ -1,71 +1,112 @@
-# FingerFlow AI 🖐️✨
+# FingerFlow Studio
 
-**FingerFlow AI** is a production-grade AI-powered Air Canvas web platform enabling real-time hand-gesture drawing, vector canvas interaction via Fabric.js, Firebase Authentication & Firestore Cloud Storage, Gemini multimodal sketch-to-art generation, handwritten OCR, math equation solving, and geometric shape recognition.
+> **Create Naturally with Gestures and AI.**
 
----
+![Hero Banner](/assets/hero_placeholder.png)
 
-## 🌟 Complete Feature Matrix
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://semver.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 
-### 🎨 1. Real-Time Gesture Drawing Engine
-- **MediaPipe Hands Integration**: 60 FPS in-browser 21-landmark hand tracking.
-- **Bézier Stroke Smoothing**: Exponential Moving Average (EMA) filter + quadratic Bézier curve interpolation to eliminate hand jitter.
-- **Fabric.js Vector Canvas**: High-performance vector paths, custom brush thickness, and eraser mode.
-- **Gesture Control System**:
-  - **Index Finger (☝️)**: DRAW Mode
-  - **Open Palm (🖐️)**: PAUSE Mode
-  - **Pinch Gesture (抓/🤏)**: Dynamic Brush Thickness Scaling
-- **Keyboard Shortcuts**:
-  - `Ctrl + Z` / `Cmd + Z`: Undo
-  - `Ctrl + Y` / `Cmd + Y`: Redo
-  - `Ctrl + S` / `Cmd + S`: Save to Cloud
-  - `B`: Select Brush Tool | `E`: Select Eraser Tool | `C`: Clear Canvas
-- **Toolbar & History**: Color palette + custom color picker, Undo/Redo stack, Clear canvas, Camera toggle, and One-click PNG Sketch Export.
+## Overview
+FingerFlow Studio is a professional AI-powered gesture drawing studio built for the browser. Leveraging advanced hand-tracking (MediaPipe), an extensible canvas engine (Fabric.js), and state-of-the-art AI generation (Gemini), FingerFlow Studio transforms your webcam into an interactive, touchless creative workstation.
 
-### 🤖 2. Gemini AI Intelligence Suite
-- **Sketch Analysis**: Detailed structure rating, composition score (out of 10), summary, detected objects, and AI creative suggestions.
-- **Sketch-to-Art Enhancement**: Art style presets (Vector Art, Realistic Photo, Anime, 3D Render, Cyberpunk Neon, Concept Art) with custom prompt bar.
-- **Handwritten OCR**: Automatic text extraction from canvas drawings.
-- **Math Solver**: Recognizes handwritten equations, formats in LaTeX, and computes step-by-step solutions.
-- **Shape Recognition**: OpenCV contour geometry detection (Circles, Squares, Triangles, Polygons).
+## Features
+- **Gesture Control**: Draw, erase, select, and pan using natural hand gestures. No mouse required.
+- **Professional Brush Engine**: Dynamic brush physics with velocity sensitivity and procedural textures.
+- **Layer Studio**: Fully-featured layer management system (hide, lock, opacity, drag-and-drop ordering).
+- **Infinite Canvas**: World-space coordinates with seamless panning, zooming, and a minimap.
+- **AI Integration**: AI-assisted shape recognition, image analysis, and generation via Gemini.
+- **Replay Engine**: Watch your session unfold stroke by stroke.
+- **Auto-Save & Cloud Sync**: Seamless integration with Firebase for instant cloud storage.
+- **Export Studio**: High-res PNG, JPEG, vector SVG, multi-page PDF, and raw `.ffstudio` projects.
 
-### 🔐 3. Firebase Authentication & Cloud Storage
-- **Authentication**: Google Sign-In popup & Email/Password Auth with persistent sessions (`onAuthStateChanged`).
-- **Cloud Drawing Management**: Save, Auto-save, Rename, Delete, and Favorite vector drawings.
-- **My Drawings & Dashboard**: Filterable gallery with Search, Sort, Grid/List view, and user stats metrics (Total Drawings, Favorites, AI Analyses, Last Activity).
-- **Vector State Restoration**: Reopen saved drawings and resume vector editing right where you left off.
+## Architecture
+FingerFlow Studio follows a modular, plugin-based Architecture.
 
-### 🚀 4. Production Polish & Architecture
-- **Startup Environment Validation**: Automatic validation of required `VITE_*` environment variables with user-friendly configuration banners.
-- **Performance**: `React.lazy()` and `<Suspense>` code-splitting for optimal bundle performance.
-- **UI Feedback**: Glassmorphism toast notifications, skeleton loaders, and responsive breakpoints.
-- **DevOps**: Multi-stage Docker setup & GitHub Actions CI/CD Pipeline.
+![Architecture Diagram](/assets/architecture_placeholder.png)
 
----
+Read the deep-dive in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## 🔑 Production Environment Variables Table
+## Technology Stack
+### Frontend
+- **Framework**: React 18 & Vite
+- **Language**: TypeScript
+- **Canvas Engine**: Fabric.js
+- **Hand Tracking**: MediaPipe Hands
+- **Styling**: Tailwind CSS & Lucide React
 
-| Variable Name | Required | Description | Example Value |
-| :--- | :---: | :--- | :--- |
-| `VITE_API_BASE_URL` | **Required** | Deployed FastAPI backend URL on Render | `https://fingerflow-backend.onrender.com` |
-| `VITE_FIREBASE_API_KEY` | **Required** | Firebase Web App API Key | `AIzaSyB...` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | **Required** | Firebase Auth Domain | `fingerflow-ai.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | **Required** | Firebase Project ID | `fingerflow-ai` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | **Required** | Firebase Cloud Storage Bucket | `fingerflow-ai.appspot.com` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | **Required** | Firebase Messaging Sender ID | `123456789012` |
-| `VITE_FIREBASE_APP_ID` | **Required** | Firebase App Registration ID | `1:123456789012:web:abcdef...` |
+### Backend
+- **Framework**: FastAPI (Python)
+- **AI**: Google Gemini Pro & Gemini Pro Vision
+- **Database**: Firebase Firestore
+- **Storage**: Firebase Cloud Storage
 
----
+## Project Structure
+```text
+ai_canvas/
+├── frontend/             # React Vite Application
+│   ├── src/
+│   │   ├── components/   # React UI components
+│   │   ├── engine/       # Core CanvasManager and Plugin APIs
+│   │   ├── hooks/        # React hooks
+│   │   └── services/     # Firebase and AI services
+├── backend/              # FastAPI Server
+│   ├── app.py            # AI endpoints
+│   └── requirements.txt
+└── .github/              # Issue and PR templates
+```
 
-## 📋 Vercel Deployment Checklist
+## Getting Started
 
-- [x] Web Application configured as Vite Single Page Application (`frontend/vercel.json`).
-- [x] Set Vercel **Root Directory** to `frontend`.
-- [x] Configure all 7 required `VITE_*` environment variables in Vercel Project Settings.
-- [x] Render backend deployed and accessible at `VITE_API_BASE_URL`.
-- [x] Firebase Authorized Domains list includes your Vercel deployment domain (`*.vercel.app`).
+### Installation & Frontend Setup
+1. Clone the repository: `git clone https://github.com/hemanthkumar-del/ai_canvas.git`
+2. Navigate to frontend: `cd ai_canvas/frontend`
+3. Install dependencies: `npm install`
+4. Start dev server: `npm run dev`
 
----
+### Backend Setup (Optional for AI)
+1. Navigate to backend: `cd ai_canvas/backend`
+2. Create virtual env: `python -m venv venv`
+3. Activate env: `venv\Scripts\activate` (Windows) or `source venv/bin/activate` (Mac/Linux)
+4. Install dependencies: `pip install -r requirements.txt`
+5. Start server: `uvicorn app:app --reload`
 
-## 📜 License
+### Configuration
+1. Create a `.env` file in the frontend folder based on `.env.example`.
+2. Add your Firebase config keys.
+3. Add your Gemini AI API key to the backend `.env`.
 
-Distributed under the MIT License. See [`LICENSE`](./LICENSE) for details.
+## Gestures & Controls
+- ☝️ **Index Point**: Draw
+- ✊ **Closed Fist**: Erase
+- ✌️ **Peace Sign**: Select / Interact
+- 🖐️ **Open Palm**: Pan Canvas
+- 👍 **Thumb Up**: Trigger Cloud Save
+- 🤏 **Pinch**: Zoom / Scale
+
+For a full breakdown of the UI, check out the [USER_GUIDE.md](USER_GUIDE.md).
+
+## Keyboard Shortcuts
+- `Ctrl + K`: Command Palette
+- `Ctrl + Z`: Undo
+- `Ctrl + Y`: Redo
+- `Ctrl + Scroll`: Zoom
+
+## Performance
+- **Zero-Latency Snapping**: Heuristic local shape recognition runs in 0ms.
+- **60 FPS**: EventBus decoupling prevents React re-renders from lagging the canvas stroke updates.
+- **Developer Mode**: Toggle via Settings to monitor FPS, frame times, memory, and coordinates.
+
+## Roadmap
+See our plans for Version 1.1 and beyond in [ROADMAP.md](ROADMAP.md).
+
+## Contributing
+We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests.
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Credits
+Built with passion by the open-source community.

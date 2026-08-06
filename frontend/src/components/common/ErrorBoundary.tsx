@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('FingerFlow AI Uncaught Error:', error, errorInfo);
+    console.error('FingerFlow Studio Uncaught Error:', error, errorInfo);
   }
 
   private handleReload = () => {
@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <Hand size={36} color="#ffffff" />
             </div>
 
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>FingerFlow AI Studio</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>FingerFlow Studio Studio</h2>
 
             <div
               style={{

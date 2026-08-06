@@ -24,6 +24,7 @@ import { DebugPanel } from './DebugPanel';
 import { CommandPalette } from './CommandPalette';
 import { ShortcutsModal } from './ShortcutsModal';
 import { PreferencesModal } from './PreferencesModal';
+import { AboutDialog } from './AboutDialog';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +75,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [showExport, setShowExport] = useState<boolean>(false);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
   const [showPreferences, setShowPreferences] = useState<boolean>(false);
+  const [showAbout, setShowAbout] = useState<boolean>(false);
   const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
   // History State
@@ -591,6 +593,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
             onClose={() => setShowPreferences(false)}
             engine={engineRef.current}
           />
+          
+          <AboutDialog 
+            isOpen={showAbout}
+            onClose={() => setShowAbout(false)}
+          />
         </>
       )}
 
@@ -642,6 +649,13 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           title="Replay Session"
         >
           ▶️
+        </button>
+        <button 
+          onClick={() => setShowAbout(true)}
+          style={{ background: '#1f2937', color: 'white', padding: '8px', borderRadius: '8px', border: '1px solid #374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          title="About FingerFlow Studio"
+        >
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</span>
         </button>
       </div>
 

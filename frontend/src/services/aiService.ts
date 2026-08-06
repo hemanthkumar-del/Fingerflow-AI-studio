@@ -110,7 +110,7 @@ export class AIServiceClient {
 
     return {
       status: 'success',
-      extracted_text: 'FingerFlow AI Canvas',
+      extracted_text: 'FingerFlow Studio Canvas',
       model_used: 'client-fallback-ocr',
     };
   }

@@ -43,7 +43,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#818cf8' }}>
           <Loader2 size={22} className="animate-spin" />
           <span style={{ fontWeight: 600, fontSize: '0.95rem', letterSpacing: '0.02em' }}>
-            Authenticating FingerFlow AI...
+            Authenticating FingerFlow Studio...
           </span>
         </div>
       </div>

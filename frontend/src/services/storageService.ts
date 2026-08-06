@@ -98,7 +98,7 @@ export class StorageService {
       brushSettings,
       canvasSize: { width: window.innerWidth, height: window.innerHeight },
       isFavorite,
-      tags: ['Air Canvas', 'FingerFlow AI'],
+      tags: ['Air Canvas', 'FingerFlow Studio'],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
