@@ -6,7 +6,7 @@ interface StatusHUDProps {
   fps: number;
   isHandDetected: boolean;
   gesture: GestureType;
-  tool: 'brush' | 'eraser' | 'selection';
+  tool: 'brush' | 'eraser' | 'selection' | 'shape';
   brushColor: string;
   brushSize: number;
   confidence: number;

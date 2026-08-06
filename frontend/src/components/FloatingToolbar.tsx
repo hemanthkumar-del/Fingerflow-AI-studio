@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
-  tool: 'brush' | 'eraser' | 'selection';
-  setTool: (tool: 'brush' | 'eraser' | 'selection') => void;
+  tool: 'brush' | 'eraser' | 'selection' | 'shape';
+  setTool: React.Dispatch<React.SetStateAction<'brush' | 'eraser' | 'selection' | 'shape'>>;
   brushColor: string;
   setBrushColor: (color: string) => void;
   brushSize: number;

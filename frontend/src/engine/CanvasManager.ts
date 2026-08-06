@@ -5,10 +5,13 @@ import { BrushManager } from './BrushManager';
 import { ToolManager } from './ToolManager';
 import { LayerManager } from './LayerManager';
 import { SelectionManager } from './SelectionManager';
+import { ShapeManager } from './ShapeManager';
 import { AddPathCommand, ClearCanvasCommand } from './commands/CanvasCommands';
 import { TransformCommand, TransformState } from './commands/TransformCommands';
 import { StrokeSmoother, Point } from '../services/strokeSmoother';
 import { SnapManager, ActiveLayerSnapProvider } from './SnapManager';
+import { ViewportManager } from './ViewportManager';
+import { ShapeRecognizer } from './shapes/ShapeRecognizer';
 
 export interface EngineConfig {
   width: number;
@@ -25,6 +28,10 @@ export class CanvasManager {
   public layers: LayerManager;
   public selection: SelectionManager;
   public snapManager: SnapManager;
+  public viewport: ViewportManager;
+  public shape: ShapeManager;
+  
+  public smartShapesEnabled: boolean = true;
 
   // Temporary path handling for gestures
   private currentPoints: Point[] = [];
@@ -46,6 +53,8 @@ export class CanvasManager {
     this.tool = new ToolManager(this.eventBus);
     this.layers = new LayerManager(this.canvas, this.eventBus);
     this.selection = new SelectionManager(this.canvas, this.eventBus);
+    this.viewport = new ViewportManager(this.canvas, this.eventBus);
+    this.shape = new ShapeManager(this.eventBus);
     this.strokeSmoother = new StrokeSmoother();
     this.snapManager = new SnapManager(this.canvas);
     this.snapManager.addProvider(new ActiveLayerSnapProvider(this.layers));
@@ -135,7 +144,11 @@ export class CanvasManager {
     if (!activeLayer || !activeLayer.visible || activeLayer.locked) {
       return null; // Block drawing
     }
-    const smoothed = this.strokeSmoother.filter(x, y, timestamp);
+    
+    // Transform incoming screen coordinates to world coordinates
+    const worldPoint = this.viewport.screenToWorld(x, y);
+    
+    const smoothed = this.strokeSmoother.filter(worldPoint.x, worldPoint.y, timestamp);
     this.currentPoints.push(smoothed);
 
     if (this.currentPoints.length > 1) {
@@ -170,6 +183,13 @@ export class CanvasManager {
           evented: false,
         });
         paths = [eraserPath];
+      } else if (this.tool.getTool() === 'shape') {
+        const shapeConfig = this.shape.getConfig();
+        const start = this.currentPoints[0];
+        const end = this.currentPoints[this.currentPoints.length - 1];
+        const plugin = this.shape.getActivePlugin();
+        const obj = plugin.createShape(start.x, start.y, end.x, end.y, shapeConfig);
+        if (obj) paths = [obj];
       } else {
         const plugin = this.brush.getActivePlugin();
         const result = plugin.createPath(
@@ -201,7 +221,37 @@ export class CanvasManager {
       const activeLayerId = this.layers.getActiveLayerId();
       if (!activeLayerId) return;
 
-      this.activeTempPaths.forEach(path => {
+      let finalPaths = [...this.activeTempPaths];
+      
+      // Auto-convert stroke to Smart Shape if enabled, not using shape tool, and not using eraser
+      if (this.smartShapesEnabled && this.tool.getTool() === 'brush') {
+        const recognizedId = ShapeRecognizer.recognize(this.currentPoints);
+        if (recognizedId) {
+          const shapeConfig = { color: this.brush.getConfig().color, size: this.brush.getConfig().size, opacity: this.brush.getConfig().opacity, fill: false };
+          const minX = Math.min(...this.currentPoints.map(p => p.x));
+          const minY = Math.min(...this.currentPoints.map(p => p.y));
+          const maxX = Math.max(...this.currentPoints.map(p => p.x));
+          const maxY = Math.max(...this.currentPoints.map(p => p.y));
+          
+          const plugin = this.shape.getPlugins().find(p => p.id === recognizedId);
+          if (plugin) {
+            let obj: fabric.Object | null = null;
+            if (recognizedId === 'line') {
+               obj = plugin.createShape(this.currentPoints[0].x, this.currentPoints[0].y, this.currentPoints[this.currentPoints.length-1].x, this.currentPoints[this.currentPoints.length-1].y, shapeConfig);
+            } else {
+               obj = plugin.createShape(minX, minY, maxX, maxY, shapeConfig);
+            }
+            if (obj) {
+              // Remove original paths
+              this.activeTempPaths.forEach(p => this.canvas.remove(p));
+              this.canvas.add(obj);
+              finalPaths = [obj];
+            }
+          }
+        }
+      }
+
+      finalPaths.forEach(path => {
         // Stamp metadata onto each object created by the plugin
         (path as any).layerId = activeLayerId;
         (path as any).createdAt = Date.now();
@@ -216,11 +266,10 @@ export class CanvasManager {
       });
 
       // Clear temp array but keep objects on canvas
-      const pathsToSave = [...this.activeTempPaths];
       this.activeTempPaths = [];
       
-      pathsToSave.forEach(p => this.canvas.remove(p));
-      const command = new AddPathCommand(this.canvas, pathsToSave, this.layers);
+      finalPaths.forEach(p => this.canvas.remove(p));
+      const command = new AddPathCommand(this.canvas, finalPaths, this.layers);
       this.history.execute(command);
     }
     this.currentPoints = [];

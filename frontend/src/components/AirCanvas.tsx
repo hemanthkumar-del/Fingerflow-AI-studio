@@ -17,6 +17,8 @@ import { GestureSettingsModal } from './GestureSettingsModal';
 import { LayerPanel } from './LayerPanel';
 import { SelectionToolbar } from './SelectionToolbar';
 import { BrushStudio } from './BrushStudio';
+import { ShapeToolbar } from './ShapeToolbar';
+import { Minimap } from './Minimap';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +40,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const engineRef = useRef<CanvasManager | null>(null);
 
   // Drawing state
-  const [tool, setTool] = useState<'brush' | 'eraser' | 'selection'>('brush');
+  const [tool, setTool] = useState<'brush' | 'eraser' | 'selection' | 'shape'>('brush');
   const [brushColor, setBrushColor] = useState<string>('#6366f1');
   const [brushSize, setBrushSize] = useState<number>(8);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(true);
@@ -535,11 +537,15 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       <AISidebar getCanvasImage={getCanvasImage} />
 
       {engineRef.current && (
-        <BrushStudio
-          engine={engineRef.current}
-          isOpen={showBrushStudio}
-          onClose={() => setShowBrushStudio(false)}
-        />
+        <>
+          <BrushStudio
+            engine={engineRef.current}
+            isOpen={showBrushStudio}
+            onClose={() => setShowBrushStudio(false)}
+          />
+          <ShapeToolbar engine={engineRef.current} />
+          <Minimap engine={engineRef.current} />
+        </>
       )}
 
       <FloatingToolbar
