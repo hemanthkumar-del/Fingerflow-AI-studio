@@ -29,12 +29,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+    let unsubscribe: () => void = () => {};
 
-    return () => unsubscribe();
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (currentUser) => {
+          setUser(currentUser);
+          setLoading(false);
+        },
+        (error) => {
+          console.warn('Auth state change error:', error);
+          setLoading(false);
+        }
+      );
+    } catch (e) {
+      console.warn('onAuthStateChanged initialization failed:', e);
+      setLoading(false);
+    }
+
+    // Safety timeout: ensure loading state resolves within 3s even if auth listener hangs
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   const loginWithGoogle = async () => {
@@ -49,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     if (res.user) {
       await updateProfile(res.user, { displayName });
-      // Force update local user object with displayName
       setUser({ ...res.user, displayName });
     }
   };
