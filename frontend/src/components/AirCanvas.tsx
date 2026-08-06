@@ -19,12 +19,19 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { BrushStudio } from './BrushStudio';
 import { ShapeToolbar } from './ShapeToolbar';
 import { Minimap } from './Minimap';
+import { ExportModal } from './ExportModal';
+import { DebugPanel } from './DebugPanel';
+import { CommandPalette } from './CommandPalette';
+import { ShortcutsModal } from './ShortcutsModal';
+import { PreferencesModal } from './PreferencesModal';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { VideoOff, RefreshCw } from 'lucide-react';
 
 import { CanvasManager } from '../engine/CanvasManager';
+import { AutoSaveManager } from '../engine/AutoSaveManager';
+import { ReplayEngine } from '../engine/ReplayEngine';
 
 interface AirCanvasProps {
   initialDrawing?: DrawingRecord | null;
@@ -38,6 +45,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<CanvasManager | null>(null);
+  const autoSaveRef = useRef<AutoSaveManager | null>(null);
+  const replayRef = useRef<ReplayEngine | null>(null);
 
   // Drawing state
   const [tool, setTool] = useState<'brush' | 'eraser' | 'selection' | 'shape'>('brush');
@@ -62,6 +71,9 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   // Settings & Overlay state
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showBrushStudio, setShowBrushStudio] = useState<boolean>(false);
+  const [showExport, setShowExport] = useState<boolean>(false);
+  const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
+  const [showPreferences, setShowPreferences] = useState<boolean>(false);
   const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
   // History State
@@ -98,24 +110,31 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       backgroundColor: '#090d16',
     });
     engineRef.current = engine;
+    
+    const autoSave = new AutoSaveManager(engine, activeDrawingId, user?.uid || 'local');
+    autoSaveRef.current = autoSave;
+    
+    const replay = new ReplayEngine(engine);
+    replayRef.current = replay;
 
-    // Listen to engine state changes
-    engine.eventBus.on('history:changed', (state) => {
+    // Load initial drawing if provided state changes
+    const onHistoryChanged = (state: any) => {
       setCanUndo(state.canUndo);
       setCanRedo(state.canRedo);
-    });
+    };
 
-    engine.eventBus.on('layers:changed', (state) => {
+    const updateLayers = (state: any) => {
       setLayers(state.layers);
       setActiveLayerId(state.activeLayerId);
-    });
+    };
 
-    // Load initial vector drawing JSON if reopening an existing drawing
-    if (initialDrawing?.fabricJson) {
-      engine.loadFromJSON(initialDrawing.fabricJson);
-    }
+    engine.eventBus.on('history:changed', onHistoryChanged);
+    engine.eventBus.on('layers:changed', updateLayers);
 
     return () => {
+      autoSaveRef.current?.destroy();
+      engine.eventBus.off('history:changed', onHistoryChanged);
+      engine.eventBus.off('layers:changed', updateLayers);
       engine.dispose();
     };
   }, []);
@@ -187,6 +206,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       );
 
       setActiveDrawingId(savedRecord.id);
+      autoSaveRef.current?.setDrawingId(savedRecord.id);
       showToast('success', 'Drawing saved to cloud!');
     } catch (error) {
       showToast('error', 'Cloud save failed. Saved to local storage.');
@@ -545,6 +565,32 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           />
           <ShapeToolbar engine={engineRef.current} />
           <Minimap engine={engineRef.current} />
+          <DebugPanel engine={engineRef.current} />
+          
+          <ExportModal 
+            engine={engineRef.current}
+            isOpen={showExport}
+            onClose={() => setShowExport(false)}
+          />
+          
+          <CommandPalette 
+            engine={engineRef.current}
+            onExport={() => setShowExport(true)}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onClear={handleClear}
+          />
+          
+          <ShortcutsModal 
+            isOpen={showShortcuts}
+            onClose={() => setShowShortcuts(false)}
+          />
+          
+          <PreferencesModal 
+            isOpen={showPreferences}
+            onClose={() => setShowPreferences(false)}
+            engine={engineRef.current}
+          />
         </>
       )}
 
@@ -568,6 +614,36 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         onToggleCamera={() => setIsCameraActive((prev) => !prev)}
         onOpenBrushStudio={() => setShowBrushStudio(true)}
       />
+
+      <div style={{ position: 'fixed', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 100 }}>
+        <button 
+          onClick={() => setShowPreferences(true)}
+          style={{ background: '#1f2937', color: 'white', padding: '8px', borderRadius: '8px', border: '1px solid #374151', cursor: 'pointer' }}
+          title="Preferences"
+        >
+          ⚙️
+        </button>
+        <button 
+          onClick={() => setShowShortcuts(true)}
+          style={{ background: '#1f2937', color: 'white', padding: '8px', borderRadius: '8px', border: '1px solid #374151', cursor: 'pointer' }}
+          title="Shortcuts"
+        >
+          ⌨️
+        </button>
+        <button 
+          onClick={() => {
+             const engine = engineRef.current;
+             const replay = replayRef.current;
+             if (engine && replay) {
+                 replay.startReplay(engine.history.getCommands());
+             }
+          }}
+          style={{ background: '#1f2937', color: 'white', padding: '8px', borderRadius: '8px', border: '1px solid #374151', cursor: 'pointer' }}
+          title="Replay Session"
+        >
+          ▶️
+        </button>
+      </div>
 
       {gestureOverlay && (
         <GestureOverlay 

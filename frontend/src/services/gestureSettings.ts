@@ -5,6 +5,7 @@ export interface GestureSettings {
   globalDebounceMultiplier: number; // To scale debounce times up/down
   enabledGestures: Record<string, boolean>; // Map of gesture IDs to enabled state
   activeProfile: 'Artist' | 'Student' | 'Teacher' | 'Designer';
+  developerMode?: boolean;
 }
 
 const DEFAULT_SETTINGS: GestureSettings = {
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: GestureSettings = {
   globalDebounceMultiplier: 1.0,
   enabledGestures: {}, // Empty means all enabled by default in registry
   activeProfile: 'Artist',
+  developerMode: false,
 };
 
 export class SettingsManager {

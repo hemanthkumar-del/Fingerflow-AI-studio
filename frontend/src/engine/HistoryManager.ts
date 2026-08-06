@@ -22,6 +22,10 @@ export class HistoryManager {
     this.notifyState();
   }
 
+  public getCommands(): Command[] {
+    return [...this.undoStack];
+  }
+
   public undo() {
     if (this.undoStack.length === 0) return;
     const command = this.undoStack.pop()!;
