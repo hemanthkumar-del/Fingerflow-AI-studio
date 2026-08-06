@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { fabric } from 'fabric';
-import { Hands, Results } from '@mediapipe/hands';
-import { Camera } from '@mediapipe/camera_utils';
+import * as mpHands from '@mediapipe/hands';
+import * as mpCamera from '@mediapipe/camera_utils';
+
+// Safe constructor extraction for Vite production build
+const Hands = mpHands.Hands || (window as any).Hands || (mpHands as any).default?.Hands;
+const Camera = mpCamera.Camera || (window as any).Camera || (mpCamera as any).default?.Camera;
 import { classifyGesture, GestureType, Landmark } from '../services/gestureClassifier';
 import { StrokeSmoother, Point } from '../services/strokeSmoother';
 import { StatusHUD } from './StatusHUD';
@@ -235,7 +239,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       minTrackingConfidence: 0.65,
     });
 
-    hands.onResults((results: Results) => {
+    hands.onResults((results: mpHands.Results) => {
       // FPS Counter calculation
       const now = performance.now();
       const delta = now - lastFrameTimeRef.current;
