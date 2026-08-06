@@ -35,75 +35,34 @@
 - **Vector State Restoration**: Reopen saved drawings and resume vector editing right where you left off.
 
 ### 🚀 4. Production Polish & Architecture
+- **Startup Environment Validation**: Automatic validation of required `VITE_*` environment variables with user-friendly configuration banners.
 - **Performance**: `React.lazy()` and `<Suspense>` code-splitting for optimal bundle performance.
 - **UI Feedback**: Glassmorphism toast notifications, skeleton loaders, and responsive breakpoints.
 - **DevOps**: Multi-stage Docker setup & GitHub Actions CI/CD Pipeline.
 
 ---
 
-## 📁 Repository Structure
+## 🔑 Production Environment Variables Table
 
-```text
-ai_canvas/
-├── .github/
-│   └── workflows/
-│       └── ci.yml              # GitHub Actions CI Workflow
-├── backend/
-│   ├── app/
-│   │   ├── api/                # FastAPI Routers (Health, AI Endpoints)
-│   │   ├── core/               # Pydantic Settings & Config
-│   │   ├── services/           # Gemini AI & OpenCV Shape Recognition
-│   │   ├── legacy/             # Preserved Python OpenCV Engine
-│   │   └── main.py             # FastAPI Server Entrypoint
-│   ├── Dockerfile              # Backend Container Setup
-│   └── requirements.txt        # Python Dependencies
-├── frontend/
-│   ├── public/                 # Favicon & Static Assets
-│   ├── src/
-│   │   ├── components/         # AirCanvas, FloatingToolbar, StatusHUD, AISidebar, MyDrawingsPage, Auth
-│   │   ├── config/             # Firebase SDK Configuration
-│   │   ├── context/            # AuthContext Provider
-│   │   ├── services/           # GestureClassifier, StrokeSmoother, AIServiceClient, StorageService
-│   │   ├── App.tsx             # Main Application Shell (Lazy-loaded)
-│   │   └── main.tsx            # React Entrypoint
-│   ├── Dockerfile              # Frontend Nginx Container Setup
-│   ├── package.json            # Node Dependencies
-│   ├── vercel.json             # Vercel SPA Routing Configuration
-│   └── vite.config.ts          # Vite Config
-├── docker-compose.yml          # Unified Container Launch
-├── .env.example                # Environment Variable Template
-├── LICENSE                     # MIT License
-└── README.md                   # Documentation
-```
+| Variable Name | Required | Description | Example Value |
+| :--- | :---: | :--- | :--- |
+| `VITE_API_BASE_URL` | **Required** | Deployed FastAPI backend URL on Render | `https://fingerflow-backend.onrender.com` |
+| `VITE_FIREBASE_API_KEY` | **Required** | Firebase Web App API Key | `AIzaSyB...` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | **Required** | Firebase Auth Domain | `fingerflow-ai.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | **Required** | Firebase Project ID | `fingerflow-ai` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | **Required** | Firebase Cloud Storage Bucket | `fingerflow-ai.appspot.com` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | **Required** | Firebase Messaging Sender ID | `123456789012` |
+| `VITE_FIREBASE_APP_ID` | **Required** | Firebase App Registration ID | `1:123456789012:web:abcdef...` |
 
 ---
 
-## 🌐 Production Deployment Guide
+## 📋 Vercel Deployment Checklist
 
-### Deploying Frontend to Vercel
-
-1. Import the `ai_canvas` GitHub repository into **Vercel**.
-2. Set **Root Directory** to `frontend`.
-3. Set **Framework Preset** to `Vite`.
-4. Configure Environment Variables in Vercel Dashboard:
-   - `VITE_API_BASE_URL`: `https://your-fingerflow-backend.onrender.com`
-   - `VITE_FIREBASE_API_KEY`: Your Firebase API key
-   - `VITE_FIREBASE_AUTH_DOMAIN`: `your-app.firebaseapp.com`
-   - `VITE_FIREBASE_PROJECT_ID`: `your-project-id`
-   - `VITE_FIREBASE_STORAGE_BUCKET`: `your-app.appspot.com`
-   - `VITE_FIREBASE_MESSAGING_SENDER_ID`: Your sender ID
-   - `VITE_FIREBASE_APP_ID`: Your app ID
-5. Click **Deploy**.
-
-### Deploying Backend to Render
-
-1. Create a **Web Service** on **Render** linked to `ai_canvas`.
-2. Set **Root Directory** to `backend`.
-3. Set **Environment** to `Python` (or `Docker`).
-4. Set **Start Command** to:
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. Add Environment Variable `GEMINI_API_KEY`.
-6. Click **Deploy Web Service**.
+- [x] Web Application configured as Vite Single Page Application (`frontend/vercel.json`).
+- [x] Set Vercel **Root Directory** to `frontend`.
+- [x] Configure all 7 required `VITE_*` environment variables in Vercel Project Settings.
+- [x] Render backend deployed and accessible at `VITE_API_BASE_URL`.
+- [x] Firebase Authorized Domains list includes your Vercel deployment domain (`*.vercel.app`).
 
 ---
 

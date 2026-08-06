@@ -1,5 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { EnvBanner } from './components/common/EnvBanner';
 import { DrawingRecord } from './services/storageService';
 import { Loader2, Hand } from 'lucide-react';
 import './App.css';
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
 
   return (
     <ProtectedRoute>
+      <EnvBanner />
       <Suspense fallback={<PageLoader />}>
         {view === 'studio' ? (
           <AirCanvas
