@@ -6,7 +6,9 @@ import { ToolManager } from './ToolManager';
 import { LayerManager } from './LayerManager';
 import { SelectionManager } from './SelectionManager';
 import { AddPathCommand, ClearCanvasCommand } from './commands/CanvasCommands';
+import { TransformCommand, TransformState } from './commands/TransformCommands';
 import { StrokeSmoother, Point } from '../services/strokeSmoother';
+import { SnapManager, ActiveLayerSnapProvider } from './SnapManager';
 
 export interface EngineConfig {
   width: number;
@@ -22,6 +24,7 @@ export class CanvasManager {
   public tool: ToolManager;
   public layers: LayerManager;
   public selection: SelectionManager;
+  public snapManager: SnapManager;
 
   // Temporary path handling for gestures
   private currentPoints: Point[] = [];
@@ -44,23 +47,68 @@ export class CanvasManager {
     this.layers = new LayerManager(this.canvas, this.eventBus);
     this.selection = new SelectionManager(this.canvas, this.eventBus);
     this.strokeSmoother = new StrokeSmoother();
+    this.snapManager = new SnapManager(this.canvas);
+    this.snapManager.addProvider(new ActiveLayerSnapProvider(this.layers));
 
     this.bindEvents();
   }
+
+  private transformStateBefore: TransformState | null = null;
 
   private bindEvents() {
     window.addEventListener('resize', this.handleResize);
     
     // Listen to tool changes to configure Fabric
     this.eventBus.on('tool:changed', (tool) => {
-      this.canvas.selection = tool === 'selection';
+      const isSelect = tool === 'selection';
+      this.canvas.selection = isSelect;
       this.canvas.getObjects().forEach(obj => {
-        obj.selectable = tool === 'selection';
-        obj.evented = tool === 'selection';
+        // Only make selectable if on active, unlocked layer
+        const layer = this.layers.getLayers().find(l => l.id === (obj as any).layerId);
+        const canSelect = isSelect && layer && !layer.locked && layer.visible;
+        obj.selectable = !!canSelect;
+        obj.evented = !!canSelect;
       });
+      if (!isSelect) this.canvas.discardActiveObject();
       this.canvas.requestRenderAll();
     });
+
+    // Capture transform state for Undo/Redo
+    this.canvas.on('object:scaling', this.captureTransformStart);
+    this.canvas.on('object:rotating', this.captureTransformStart);
+    this.canvas.on('object:moving', this.captureTransformStart);
+    
+    this.canvas.on('object:modified', (e) => {
+      const target = e.target;
+      if (!target || !this.transformStateBefore) return;
+      
+      const transformStateAfter: TransformState = {
+        left: target.left || 0,
+        top: target.top || 0,
+        scaleX: target.scaleX || 1,
+        scaleY: target.scaleY || 1,
+        angle: target.angle || 0
+      };
+
+      const cmd = new TransformCommand(target, this.transformStateBefore, transformStateAfter, this.canvas);
+      this.history.execute(cmd);
+      this.transformStateBefore = null;
+    });
   }
+
+  private captureTransformStart = (e: fabric.IEvent) => {
+    if (this.transformStateBefore) return; // already captured for this interaction
+    const target = e.target;
+    if (!target) return;
+    
+    this.transformStateBefore = {
+      left: target.left || 0,
+      top: target.top || 0,
+      scaleX: target.scaleX || 1,
+      scaleY: target.scaleY || 1,
+      angle: target.angle || 0
+    };
+  };
 
   private handleResize = () => {
     this.canvas.setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -180,5 +228,27 @@ export class CanvasManager {
   public dispose() {
     window.removeEventListener('resize', this.handleResize);
     this.canvas.dispose();
+  }
+
+  // --- Gesture Transformation Integration --- //
+
+  // Find topmost visible, unlocked object intersecting (x,y)
+  public findTargetObject(x: number, y: number): fabric.Object | null {
+    let found: fabric.Object | null = null;
+    // getObjects is ordered from bottom to top visually in Fabric
+    const objects = this.canvas.getObjects();
+    for (let i = objects.length - 1; i >= 0; i--) {
+      const obj = objects[i];
+      const layer = this.layers.getLayers().find(l => l.id === (obj as any).layerId);
+      if (layer && !layer.locked && layer.visible && obj.containsPoint(new fabric.Point(x, y))) {
+        found = obj;
+        break;
+      }
+    }
+    return found;
+  }
+
+  public getCanvas(): fabric.Canvas {
+    return this.canvas;
   }
 }

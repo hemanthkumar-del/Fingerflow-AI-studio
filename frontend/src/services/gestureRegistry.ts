@@ -14,6 +14,9 @@ export type GestureAction =
   | 'HOME_DASHBOARD'
   | 'OPEN_AI'
   | 'CLEAR_CANVAS'
+  | 'SELECTION_MODE'
+  | 'DUPLICATE_MODE'
+  | 'DELETE_MODE'
   | 'NONE';
 
 export interface GestureDefinition {
@@ -74,9 +77,9 @@ export class GestureRegistry {
         id: 'closed_fist',
         name: 'Closed Fist',
         type: 'STATIC',
-        action: 'ERASER_MODE',
+        action: 'DELETE_MODE',
         icon: '✊',
-        description: 'Eraser',
+        description: 'Delete Selection',
         priority: 5,
         cooldownMs: 500,
         debounceMs: 300,
@@ -91,9 +94,9 @@ export class GestureRegistry {
         id: 'peace',
         name: 'Peace Sign',
         type: 'STATIC',
-        action: 'PAN_MODE',
+        action: 'SELECTION_MODE',
         icon: '✌️',
-        description: 'Pan Canvas',
+        description: 'Selection Mode',
         priority: 8,
         cooldownMs: 500,
         debounceMs: 300,
@@ -156,15 +159,15 @@ export class GestureRegistry {
         }
       },
       {
-        id: 'ok_sign',
+        id: 'ok',
         name: 'OK Sign',
         type: 'STATIC',
-        action: 'SCREENSHOT',
+        action: 'DUPLICATE_MODE',
         icon: '👌',
-        description: 'Screenshot',
-        priority: 12,
-        cooldownMs: 2000,
-        debounceMs: 500,
+        description: 'Duplicate Selection',
+        priority: 15,
+        cooldownMs: 1500,
+        debounceMs: 400,
         check: (lm, fs) => {
           // Thumb and index touching (pinched), middle/ring/pinky up
           if (fs.middle && fs.ring && fs.pinky) {

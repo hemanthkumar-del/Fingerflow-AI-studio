@@ -15,6 +15,7 @@ import { Toast, ToastMessage } from './common/Toast';
 import { GestureOverlay, GestureOverlayProps } from './GestureOverlay';
 import { GestureSettingsModal } from './GestureSettingsModal';
 import { LayerPanel } from './LayerPanel';
+import { SelectionToolbar } from './SelectionToolbar';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +37,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const engineRef = useRef<CanvasManager | null>(null);
 
   // Drawing state
-  const [tool, setTool] = useState<'brush' | 'eraser'>('brush');
+  const [tool, setTool] = useState<'brush' | 'eraser' | 'selection'>('brush');
   const [brushColor, setBrushColor] = useState<string>('#6366f1');
   const [brushSize, setBrushSize] = useState<number>(8);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(true);
@@ -320,7 +321,101 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         const indexY = primaryLandmarks[8].y * h;
 
         // Perform Gesture Logic using CanvasManager
-        if (gestureResult.gesture === 'DRAW') {
+        if (gestureResult.gesture === 'SELECTION_MODE') {
+          if (tool !== 'selection') {
+            setTool('selection');
+            showToast('info', 'Selection Mode Active');
+          }
+        }
+
+        if (tool === 'selection') {
+          // Handle Selection/Transform Gestures
+          const activeSelection = engineRef.current?.getCanvas().getActiveObject();
+          const mode = engineRef.current?.selection.getMode() || 'select';
+
+          if (gestureResult.gesture === 'DRAW') {
+            // Act as mouse move
+            if (activeSelection) {
+              // Calculate delta and translate
+              const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
+              if (currentPointsRef.current.length > 0) {
+                const prev = currentPointsRef.current[currentPointsRef.current.length - 1];
+                const dx = smoothedPoint.x - prev.x;
+                const dy = smoothedPoint.y - prev.y;
+
+                if (mode === 'move') {
+                  activeSelection.set({ left: (activeSelection.left || 0) + dx, top: (activeSelection.top || 0) + dy });
+                  activeSelection.setCoords();
+                  engineRef.current?.getCanvas().requestRenderAll();
+                } else if (mode === 'rotate') {
+                  // Basic rotation: delta X controls angle
+                  activeSelection.set({ angle: (activeSelection.angle || 0) + dx * 0.5 });
+                  activeSelection.setCoords();
+                  engineRef.current?.getCanvas().requestRenderAll();
+                }
+              }
+              currentPointsRef.current.push(smoothedPoint);
+            } else {
+              // Find target and select it
+              const target = engineRef.current?.findTargetObject(indexX, indexY);
+              if (target) {
+                engineRef.current?.getCanvas().setActiveObject(target);
+                engineRef.current?.getCanvas().requestRenderAll();
+              }
+            }
+          } else if (gestureResult.gesture === 'PINCH' && activeSelection && gestureResult.pinchDistance !== undefined) {
+             if (mode === 'resize') {
+               // Pinch to resize - Precision mode threshold
+               const deltaPinch = gestureResult.pinchDistance - (currentPointsRef.current[0]?.x || gestureResult.pinchDistance); // using points[0].x as temp storage for prev distance
+               // We would need a more robust pinch delta tracker across frames
+               // For now, mapping pinch distance directly to scale.
+               const scale = Math.max(0.1, gestureResult.pinchDistance * 5); 
+               activeSelection.set({ scaleX: scale, scaleY: scale });
+               activeSelection.setCoords();
+               engineRef.current?.getCanvas().requestRenderAll();
+             }
+          } else if (gestureResult.gesture === 'DUPLICATE_MODE' && activeSelection) {
+             if (!cooldownActive) {
+               // Duplicate
+               activeSelection.clone((cloned: any) => {
+                 cloned.set({ left: (cloned.left || 0) + 20, top: (cloned.top || 0) + 20 });
+                 engineRef.current?.getCanvas().add(cloned);
+                 engineRef.current?.getCanvas().setActiveObject(cloned);
+                 engineRef.current?.getCanvas().requestRenderAll();
+               });
+               setCooldownActive(true);
+               setTimeout(() => setCooldownActive(false), 1000);
+               showToast('success', 'Object Duplicated');
+             }
+          } else if (gestureResult.gesture === 'DELETE_MODE' && activeSelection) {
+             if (!cooldownActive) {
+               const DeleteCommand = require('../engine/commands/TransformCommands').DeleteObjectCommand;
+               const cmd = new DeleteCommand(engineRef.current?.getCanvas(), engineRef.current?.selection.getActiveObjects());
+               engineRef.current?.history.execute(cmd);
+               setCooldownActive(true);
+               setTimeout(() => setCooldownActive(false), 1000);
+               showToast('info', 'Object Deleted');
+             }
+          } else {
+            // Reset temp state
+            currentPointsRef.current = [];
+            // If they release draw over an object, we trigger object:modified manually
+            if (activeSelection) {
+              engineRef.current?.getCanvas().fire('object:modified', { target: activeSelection });
+            }
+          }
+
+          // Hover cursor
+          const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
+          ctx.beginPath();
+          ctx.arc(smoothedPoint.x, smoothedPoint.y, 6, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(99, 102, 241, 0.4)';
+          ctx.strokeStyle = '#6366f1';
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (gestureResult.gesture === 'DRAW') {
           const smoothedPoint = engineRef.current?.updateStroke(indexX, indexY, now);
           
           if (smoothedPoint) {
@@ -473,11 +568,14 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       )}
 
       {engineRef.current && (
-        <LayerPanel 
-          engine={engineRef.current}
-          layers={layers}
-          activeLayerId={activeLayerId}
-        />
+        <>
+          <LayerPanel 
+            engine={engineRef.current}
+            layers={layers}
+            activeLayerId={activeLayerId}
+          />
+          <SelectionToolbar engine={engineRef.current} />
+        </>
       )}
 
       <button 

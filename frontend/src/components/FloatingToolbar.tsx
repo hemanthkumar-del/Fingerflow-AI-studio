@@ -11,11 +11,12 @@ import {
   Download,
   UploadCloud,
   FolderKanban,
+  MousePointer2,
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
-  tool: 'brush' | 'eraser';
-  setTool: (tool: 'brush' | 'eraser') => void;
+  tool: 'brush' | 'eraser' | 'selection';
+  setTool: (tool: 'brush' | 'eraser' | 'selection') => void;
   brushColor: string;
   setBrushColor: (color: string) => void;
   brushSize: number;
