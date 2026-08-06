@@ -6,7 +6,7 @@ import * as mpCamera from '@mediapipe/camera_utils';
 // Safe constructor extraction for Vite production build
 const Hands = mpHands.Hands || (window as any).Hands || (mpHands as any).default?.Hands;
 const Camera = mpCamera.Camera || (window as any).Camera || (mpCamera as any).default?.Camera;
-import { classifyGesture, GestureType, Landmark } from '../services/gestureClassifier';
+import { GestureEngine, GestureType, Landmark, FingerState } from '../services/gestureClassifier';
 import { StrokeSmoother, Point } from '../services/strokeSmoother';
 import { StatusHUD } from './StatusHUD';
 import { FloatingToolbar } from './FloatingToolbar';
@@ -39,13 +39,19 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [fps, setFps] = useState<number>(60);
   const [isHandDetected, setIsHandDetected] = useState<boolean>(false);
   const [currentGesture, setCurrentGesture] = useState<GestureType>('NONE');
+  const [confidence, setConfidence] = useState<number>(0);
+  const [velocity, setVelocity] = useState<number>(0);
+  const [fingerState, setFingerState] = useState<FingerState>({
+    thumb: false, index: false, middle: false, ring: false, pinky: false,
+  });
 
   // History Stack for Undo/Redo
   const [historyStack, setHistoryStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
 
   // Internal refs for smooth gesture tracking loop without React state rerender lag
-  const strokeSmootherRef = useRef<StrokeSmoother>(new StrokeSmoother(0.35));
+  const gestureEngineRef = useRef<GestureEngine>(new GestureEngine());
+  const strokeSmootherRef = useRef<StrokeSmoother>(new StrokeSmoother());
   const currentPointsRef = useRef<Point[]>([]);
   const activePathRef = useRef<fabric.Path | null>(null);
   const gestureRef = useRef<GestureType>('NONE');
@@ -271,17 +277,20 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           z: lm.z,
         }));
 
-        // Classify Gesture
-        const gestureResult = classifyGesture(landmarks);
+        // Classify Gesture using Phase 7 Precision Engine
+        const gestureResult = gestureEngineRef.current.update(landmarks, now);
         gestureRef.current = gestureResult.gesture;
         setCurrentGesture(gestureResult.gesture);
+        setConfidence(gestureResult.confidence);
+        setFingerState(gestureResult.fingerState);
+        setVelocity(gestureResult.velocity);
 
         // Index tip position in canvas coordinates
         const indexX = landmarks[8].x * w;
         const indexY = landmarks[8].y * h;
 
-        // Smooth point using EMA Filter
-        const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY);
+        // Smooth point using One Euro + Kalman Filter
+        const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
 
         // Draw pointer tracking circle on overlay HUD
         ctx.beginPath();
@@ -411,6 +420,9 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         tool={tool}
         brushColor={brushColor}
         brushSize={brushSize}
+        confidence={confidence}
+        fingerState={fingerState}
+        velocity={velocity}
       />
 
       <AISidebar getCanvasImage={getCanvasImage} />
