@@ -1,9 +1,10 @@
 import React from 'react';
-import { Hand, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { Hand, Sparkles, Layers } from 'lucide-react';
+import { ProfileMenu } from './ProfileMenu';
 
 export const Header: React.FC = () => {
   return (
-    <header className="glass-panel" style={{ margin: '1rem', padding: '1rem 2rem', borderRadius: '12px' }}>
+    <header className="glass-panel" style={{ margin: '1rem', padding: '0.85rem 1.5rem', borderRadius: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ 
@@ -32,10 +33,7 @@ export const Header: React.FC = () => {
             <Sparkles size={16} color="#c084fc" />
             <span>Gemini AI</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
-            <ShieldCheck size={16} color="#4ade80" />
-            <span>Firebase Ready</span>
-          </div>
+          <ProfileMenu />
         </div>
       </div>
     </header>

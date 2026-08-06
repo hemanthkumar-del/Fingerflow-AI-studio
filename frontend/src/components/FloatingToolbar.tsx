@@ -9,6 +9,8 @@ import {
   CameraOff,
   Sliders,
   Download,
+  UploadCloud,
+  FolderKanban,
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -22,6 +24,9 @@ interface FloatingToolbarProps {
   onRedo: () => void;
   onClear: () => void;
   onExport: () => void;
+  onSaveCloud: () => void;
+  onOpenMyDrawings: () => void;
+  isSavingCloud?: boolean;
   canUndo: boolean;
   canRedo: boolean;
   isCameraActive: boolean;
@@ -49,6 +54,9 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   onRedo,
   onClear,
   onExport,
+  onSaveCloud,
+  onOpenMyDrawings,
+  isSavingCloud,
   canUndo,
   canRedo,
   isCameraActive,
@@ -215,6 +223,37 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           }}
         >
           <RotateCw size={18} />
+        </button>
+
+        <button
+          onClick={onSaveCloud}
+          disabled={isSavingCloud}
+          title="Save to Cloud"
+          style={{
+            background: isSavingCloud ? 'rgba(99, 102, 241, 0.3)' : 'rgba(34, 197, 94, 0.15)',
+            border: '1px solid rgba(74, 222, 128, 0.3)',
+            color: '#4ade80',
+            padding: '8px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          <UploadCloud size={18} />
+        </button>
+
+        <button
+          onClick={onOpenMyDrawings}
+          title="My Cloud Drawings & Dashboard"
+          style={{
+            background: 'rgba(168, 85, 247, 0.15)',
+            border: '1px solid rgba(192, 132, 252, 0.3)',
+            color: '#c084fc',
+            padding: '8px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          <FolderKanban size={18} />
         </button>
 
         <button

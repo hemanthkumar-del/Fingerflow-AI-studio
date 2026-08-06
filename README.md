@@ -1,10 +1,10 @@
 # FingerFlow AI 🖐️✨
 
-**FingerFlow AI** is a production-grade AI-powered Air Canvas web platform enabling real-time hand-gesture drawing, vector canvas rendering via Fabric.js, Gemini-powered sketch-to-art generation, handwritten OCR, math equation solving, and geometric shape recognition.
+**FingerFlow AI** is a production-grade AI-powered Air Canvas web platform enabling real-time hand-gesture drawing, vector canvas interaction via Fabric.js, Firebase Authentication & Firestore Cloud Storage, Gemini multimodal sketch-to-art generation, handwritten OCR, math equation solving, and geometric shape recognition.
 
 ---
 
-## ✨ Features Implemented
+## 🌟 Complete Feature Matrix
 
 ### 🎨 1. Real-Time Gesture Drawing Engine
 - **MediaPipe Hands Integration**: 60 FPS in-browser 21-landmark hand tracking.
@@ -13,24 +13,35 @@
 - **Gesture Control System**:
   - **Index Finger (☝️)**: DRAW Mode
   - **Open Palm (🖐️)**: PAUSE Mode
-  - **Pinch Gesture (🤏)**: Dynamic Brush Thickness Adjuster
-- **Toolbar & History**: Preset colors + custom color picker, Undo/Redo stack, Clear canvas, Camera toggle, and One-click PNG Sketch Export.
+  - **Pinch Gesture (抓/🤏)**: Dynamic Brush Thickness Scaling
+- **Keyboard Shortcuts**:
+  - `Ctrl + Z` / `Cmd + Z`: Undo
+  - `Ctrl + Y` / `Cmd + Y`: Redo
+  - `Ctrl + S` / `Cmd + S`: Save to Cloud
+  - `B`: Select Brush Tool | `E`: Select Eraser Tool | `C`: Clear Canvas
+- **Toolbar & History**: Color palette + custom color picker, Undo/Redo stack, Clear canvas, Camera toggle, and One-click PNG Sketch Export.
 
 ### 🤖 2. Gemini AI Intelligence Suite
-- **Sketch Analysis**: Detailed structure rating, summary, detected objects, and creative suggestions.
-- **Sketch-to-Art Enhancement**: Style presets (Vector Art, Realistic Photo, Anime, 3D Render, Cyberpunk Neon, Concept Art) with custom prompt bar.
+- **Sketch Analysis**: Detailed structure rating, composition score (out of 10), summary, detected objects, and AI creative suggestions.
+- **Sketch-to-Art Enhancement**: Art style presets (Vector Art, Realistic Photo, Anime, 3D Render, Cyberpunk Neon, Concept Art) with custom prompt bar.
 - **Handwritten OCR**: Automatic text extraction from canvas drawings.
 - **Math Solver**: Recognizes handwritten equations, formats in LaTeX, and computes step-by-step solutions.
 - **Shape Recognition**: OpenCV contour geometry detection (Circles, Squares, Triangles, Polygons).
 
-### ⚡ 3. Architecture & DevOps
-- **Frontend**: React 18, Vite, TypeScript, Fabric.js, MediaPipe Hands, Firebase SDK.
-- **Backend**: FastAPI, Uvicorn, Google Generative AI SDK, Firebase Admin SDK, OpenCV.
-- **DevOps**: Docker, Docker Compose, GitHub Actions CI/CD Pipeline.
+### 🔐 3. Firebase Authentication & Cloud Storage
+- **Authentication**: Google Sign-In popup & Email/Password Auth with persistent sessions (`onAuthStateChanged`).
+- **Cloud Drawing Management**: Save, Auto-save, Rename, Delete, and Favorite vector drawings.
+- **My Drawings & Dashboard**: Filterable gallery with Search, Sort, Grid/List view, and user stats metrics (Total Drawings, Favorites, AI Analyses, Last Activity).
+- **Vector State Restoration**: Reopen saved drawings and resume vector editing right where you left off.
+
+### 🚀 4. Production Polish & Architecture
+- **Performance**: `React.lazy()` and `<Suspense>` code-splitting for optimal bundle performance.
+- **UI Feedback**: Glassmorphism toast notifications, skeleton loaders, and responsive breakpoints.
+- **DevOps**: Multi-stage Docker setup & GitHub Actions CI/CD Pipeline.
 
 ---
 
-## 📁 Repository Layout
+## 📁 Repository Structure
 
 ```text
 ai_canvas/
@@ -49,10 +60,11 @@ ai_canvas/
 ├── frontend/
 │   ├── public/                 # Favicon & Static Assets
 │   ├── src/
-│   │   ├── components/         # AirCanvas, FloatingToolbar, StatusHUD, AISidebar
+│   │   ├── components/         # AirCanvas, FloatingToolbar, StatusHUD, AISidebar, MyDrawingsPage, Auth
 │   │   ├── config/             # Firebase SDK Configuration
-│   │   ├── services/           # GestureClassifier, StrokeSmoother, AIServiceClient
-│   │   ├── App.tsx             # Main Application Shell
+│   │   ├── context/            # AuthContext Provider
+│   │   ├── services/           # GestureClassifier, StrokeSmoother, AIServiceClient, StorageService
+│   │   ├── App.tsx             # Main Application Shell (Lazy-loaded)
 │   │   └── main.tsx            # React Entrypoint
 │   ├── Dockerfile              # Frontend Nginx Container Setup
 │   ├── package.json            # Node Dependencies
@@ -65,7 +77,7 @@ ai_canvas/
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Deployment & Quick Start Guide
 
 ### Using Docker Compose
 ```bash
@@ -76,7 +88,7 @@ cd ai_canvas
 # Copy environment template
 cp .env.example .env
 
-# Build and start services
+# Build and start containers
 docker-compose up --build
 ```
 - Access Frontend UI: `http://localhost:5173`

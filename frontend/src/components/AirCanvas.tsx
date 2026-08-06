@@ -7,8 +7,18 @@ import { StrokeSmoother, Point } from '../services/strokeSmoother';
 import { StatusHUD } from './StatusHUD';
 import { FloatingToolbar } from './FloatingToolbar';
 import { AISidebar } from './AISidebar';
+import { Toast, ToastMessage } from './common/Toast';
+import { StorageService, DrawingRecord } from '../services/storageService';
+import { useAuth } from '../context/AuthContext';
+import { VideoOff, RefreshCw } from 'lucide-react';
 
-export const AirCanvas: React.FC = () => {
+interface AirCanvasProps {
+  initialDrawing?: DrawingRecord | null;
+  onOpenMyDrawings?: () => void;
+}
+
+export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDrawings }) => {
+  const { user } = useAuth();
   // Canvas & Video element refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -40,6 +50,11 @@ export const AirCanvas: React.FC = () => {
   const frameTimesRef = useRef<number[]>([]);
   const lastFrameTimeRef = useRef<number>(performance.now());
 
+  // Drawing Metadata & Cloud Saving state
+  const [activeDrawingId, setActiveDrawingId] = useState<string | null>(initialDrawing?.id || null);
+  const [drawingTitle, setDrawingTitle] = useState<string>(initialDrawing?.title || 'Untitled Air Sketch');
+  const [isSavingCloud, setIsSavingCloud] = useState<boolean>(false);
+
   // 1. Initialize Fabric.js Canvas
   useEffect(() => {
     if (!fabricCanvasRef.current) return;
@@ -57,9 +72,17 @@ export const AirCanvas: React.FC = () => {
 
     fabricInstanceRef.current = fabricCanvas;
 
-    // Save initial blank canvas state
-    const initialState = JSON.stringify(fabricCanvas.toJSON());
-    setHistoryStack([initialState]);
+    // Load initial vector drawing JSON if reopening an existing drawing
+    if (initialDrawing?.fabricJson) {
+      fabricCanvas.loadFromJSON(initialDrawing.fabricJson, () => {
+        fabricCanvas.renderAll();
+        const state = JSON.stringify(fabricCanvas.toJSON());
+        setHistoryStack([state]);
+      });
+    } else {
+      const initialState = JSON.stringify(fabricCanvas.toJSON());
+      setHistoryStack([initialState]);
+    }
 
     const handleResize = () => {
       fabricCanvas.setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -111,6 +134,40 @@ export const AirCanvas: React.FC = () => {
     });
   }, [redoStack]);
 
+  // Toast Notification state
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [cameraError, setCameraError] = useState<boolean>(false);
+
+  const showToast = (type: 'success' | 'error' | 'info', text: string) => {
+    setToast({ id: Date.now().toString(), type, text });
+  };
+
+  // Save Drawing to Cloud Storage & Firestore
+  const handleSaveCloud = useCallback(async () => {
+    if (!fabricInstanceRef.current || !user) return;
+    try {
+      setIsSavingCloud(true);
+      const fabricJson = JSON.stringify(fabricInstanceRef.current.toJSON());
+      const imageB64 = fabricInstanceRef.current.toDataURL({ format: 'png', quality: 0.9 });
+
+      const savedRecord = await StorageService.saveDrawing(
+        user.uid,
+        activeDrawingId,
+        drawingTitle,
+        fabricJson,
+        imageB64,
+        { color: brushColor, size: brushSize, tool }
+      );
+
+      setActiveDrawingId(savedRecord.id);
+      showToast('success', 'Drawing saved to cloud!');
+    } catch (error) {
+      showToast('error', 'Cloud save failed. Saved to local storage.');
+    } finally {
+      setIsSavingCloud(false);
+    }
+  }, [user, activeDrawingId, drawingTitle, brushColor, brushSize, tool]);
+
   // Export Canvas Action
   const handleExport = useCallback(() => {
     if (!fabricInstanceRef.current) return;
@@ -119,6 +176,7 @@ export const AirCanvas: React.FC = () => {
     link.download = `fingerflow-sketch-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
+    showToast('success', 'Sketch exported as PNG image!');
   }, []);
 
   // Clear Canvas Action
@@ -128,8 +186,39 @@ export const AirCanvas: React.FC = () => {
     fabricInstanceRef.current.setBackgroundColor('#090d16', () => {
       fabricInstanceRef.current?.renderAll();
       saveCanvasState();
+      showToast('info', 'Canvas cleared.');
     });
   }, [saveCanvasState]);
+
+  // Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing inside input elements
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSaveCloud();
+      } else if (e.key.toLowerCase() === 'b') {
+        setTool('brush');
+      } else if (e.key.toLowerCase() === 'e') {
+        setTool('eraser');
+      } else if (e.key.toLowerCase() === 'c') {
+        handleClear();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo, handleSaveCloud, handleClear]);
 
   // 2. Initialize MediaPipe Hands & Video Stream Pipeline
   useEffect(() => {
@@ -333,11 +422,16 @@ export const AirCanvas: React.FC = () => {
         onRedo={handleRedo}
         onClear={handleClear}
         onExport={handleExport}
+        onSaveCloud={handleSaveCloud}
+        onOpenMyDrawings={onOpenMyDrawings || (() => {})}
+        isSavingCloud={isSavingCloud}
         canUndo={historyStack.length > 1}
         canRedo={redoStack.length > 0}
         isCameraActive={isCameraActive}
         onToggleCamera={() => setIsCameraActive((prev) => !prev)}
       />
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 };
