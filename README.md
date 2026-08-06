@@ -68,6 +68,7 @@ ai_canvas/
 │   │   └── main.tsx            # React Entrypoint
 │   ├── Dockerfile              # Frontend Nginx Container Setup
 │   ├── package.json            # Node Dependencies
+│   ├── vercel.json             # Vercel SPA Routing Configuration
 │   └── vite.config.ts          # Vite Config
 ├── docker-compose.yml          # Unified Container Launch
 ├── .env.example                # Environment Variable Template
@@ -77,22 +78,32 @@ ai_canvas/
 
 ---
 
-## 🚀 Deployment & Quick Start Guide
+## 🌐 Production Deployment Guide
 
-### Using Docker Compose
-```bash
-# Clone the repository
-git clone https://github.com/hemanthkumar-del/ai_canvas.git
-cd ai_canvas
+### Deploying Frontend to Vercel
 
-# Copy environment template
-cp .env.example .env
+1. Import the `ai_canvas` GitHub repository into **Vercel**.
+2. Set **Root Directory** to `frontend`.
+3. Set **Framework Preset** to `Vite`.
+4. Configure Environment Variables in Vercel Dashboard:
+   - `VITE_API_BASE_URL`: `https://your-fingerflow-backend.onrender.com`
+   - `VITE_FIREBASE_API_KEY`: Your Firebase API key
+   - `VITE_FIREBASE_AUTH_DOMAIN`: `your-app.firebaseapp.com`
+   - `VITE_FIREBASE_PROJECT_ID`: `your-project-id`
+   - `VITE_FIREBASE_STORAGE_BUCKET`: `your-app.appspot.com`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`: Your sender ID
+   - `VITE_FIREBASE_APP_ID`: Your app ID
+5. Click **Deploy**.
 
-# Build and start containers
-docker-compose up --build
-```
-- Access Frontend UI: `http://localhost:5173`
-- Access Backend API Docs: `http://localhost:8000/docs`
+### Deploying Backend to Render
+
+1. Create a **Web Service** on **Render** linked to `ai_canvas`.
+2. Set **Root Directory** to `backend`.
+3. Set **Environment** to `Python` (or `Docker`).
+4. Set **Start Command** to:
+   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5. Add Environment Variable `GEMINI_API_KEY`.
+6. Click **Deploy Web Service**.
 
 ---
 
