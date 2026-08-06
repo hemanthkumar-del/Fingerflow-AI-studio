@@ -8,6 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Fabric.js](https://img.shields.io/badge/Fabric.js-1B2631?style=flat&logo=javascript&logoColor=F7DF1E)](http://fabricjs.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat&logo=firebase&logoColor=white)](https://firebase.google.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Render](https://img.shields.io/badge/Render-46E3B7?style=flat&logo=render&logoColor=white)](https://render.com/)
 
 ## Overview
 FingerFlow Studio is a professional AI-powered gesture drawing studio built for the browser. Leveraging advanced hand-tracking (MediaPipe), an extensible canvas engine (Fabric.js), and state-of-the-art AI generation (Gemini), FingerFlow Studio transforms your webcam into an interactive, touchless creative workstation.
