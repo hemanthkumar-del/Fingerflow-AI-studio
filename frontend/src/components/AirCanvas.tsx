@@ -19,6 +19,8 @@ import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { VideoOff, RefreshCw } from 'lucide-react';
 
+import { CanvasManager } from '../engine/CanvasManager';
+
 interface AirCanvasProps {
   initialDrawing?: DrawingRecord | null;
   onOpenMyDrawings?: () => void;
@@ -30,7 +32,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fabricInstanceRef = useRef<fabric.Canvas | null>(null);
+  const engineRef = useRef<CanvasManager | null>(null);
 
   // Drawing state
   const [tool, setTool] = useState<'brush' | 'eraser'>('brush');
@@ -56,9 +58,9 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
-  // History Stack for Undo/Redo
-  const [historyStack, setHistoryStack] = useState<string[]>([]);
-  const [redoStack, setRedoStack] = useState<string[]>([]);
+  // History State
+  const [canUndo, setCanUndo] = useState<boolean>(false);
+  const [canRedo, setCanRedo] = useState<boolean>(false);
 
   // Internal refs for smooth gesture tracking loop without React state rerender lag
   const gestureEngineRef = useRef<GestureEngine>(new GestureEngine());
@@ -76,84 +78,50 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [drawingTitle, setDrawingTitle] = useState<string>(initialDrawing?.title || 'Untitled Air Sketch');
   const [isSavingCloud, setIsSavingCloud] = useState<boolean>(false);
 
-  // 1. Initialize Fabric.js Canvas
+  // 1. Initialize Modular Canvas Engine
   useEffect(() => {
     if (!fabricCanvasRef.current) return;
 
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    const fabricCanvas = new fabric.Canvas(fabricCanvasRef.current, {
-      width,
-      height,
+    const engine = new CanvasManager(fabricCanvasRef.current, {
+      width: window.innerWidth,
+      height: window.innerHeight,
       backgroundColor: '#090d16',
-      isDrawingMode: false,
-      selection: false,
     });
+    engineRef.current = engine;
 
-    fabricInstanceRef.current = fabricCanvas;
+    // Listen to engine state changes
+    engine.eventBus.on('history:changed', (state) => {
+      setCanUndo(state.canUndo);
+      setCanRedo(state.canRedo);
+    });
 
     // Load initial vector drawing JSON if reopening an existing drawing
     if (initialDrawing?.fabricJson) {
-      fabricCanvas.loadFromJSON(initialDrawing.fabricJson, () => {
-        fabricCanvas.renderAll();
-        const state = JSON.stringify(fabricCanvas.toJSON());
-        setHistoryStack([state]);
-      });
-    } else {
-      const initialState = JSON.stringify(fabricCanvas.toJSON());
-      setHistoryStack([initialState]);
+      engine.loadFromJSON(initialDrawing.fabricJson);
     }
 
-    const handleResize = () => {
-      fabricCanvas.setDimensions({ width: window.innerWidth, height: window.innerHeight });
-      fabricCanvas.renderAll();
-    };
-
-    window.addEventListener('resize', handleResize);
-
     return () => {
-      window.removeEventListener('resize', handleResize);
-      fabricCanvas.dispose();
+      engine.dispose();
     };
   }, []);
 
-  // Save state helper for undo/redo stack
-  const saveCanvasState = useCallback(() => {
-    if (!fabricInstanceRef.current) return;
-    const json = JSON.stringify(fabricInstanceRef.current.toJSON());
-    setHistoryStack((prev) => [...prev, json]);
-    setRedoStack([]);
-  }, []);
+  // Sync tool and brush settings to engine
+  useEffect(() => {
+    if (!engineRef.current) return;
+    engineRef.current.tool.setTool(tool);
+    engineRef.current.brush.setColor(brushColor);
+    engineRef.current.brush.setSize(brushSize);
+  }, [tool, brushColor, brushSize]);
 
   // Undo Action
   const handleUndo = useCallback(() => {
-    if (historyStack.length <= 1 || !fabricInstanceRef.current) return;
-
-    const currentState = historyStack[historyStack.length - 1];
-    const previousState = historyStack[historyStack.length - 2];
-
-    setRedoStack((prev) => [...prev, currentState]);
-    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
-
-    fabricInstanceRef.current.loadFromJSON(previousState, () => {
-      fabricInstanceRef.current?.renderAll();
-    });
-  }, [historyStack]);
+    engineRef.current?.history.undo();
+  }, []);
 
   // Redo Action
   const handleRedo = useCallback(() => {
-    if (redoStack.length === 0 || !fabricInstanceRef.current) return;
-
-    const nextState = redoStack[redoStack.length - 1];
-
-    setRedoStack((prev) => prev.slice(0, prev.length - 1));
-    setHistoryStack((prev) => [...prev, nextState]);
-
-    fabricInstanceRef.current.loadFromJSON(nextState, () => {
-      fabricInstanceRef.current?.renderAll();
-    });
-  }, [redoStack]);
+    engineRef.current?.history.redo();
+  }, []);
 
   // Toast Notification state
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -188,11 +156,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
   // Save Drawing to Cloud Storage & Firestore
   const handleSaveCloud = useCallback(async () => {
-    if (!fabricInstanceRef.current || !user) return;
+    if (!engineRef.current || !user) return;
     try {
       setIsSavingCloud(true);
-      const fabricJson = JSON.stringify(fabricInstanceRef.current.toJSON());
-      const imageB64 = fabricInstanceRef.current.toDataURL({ format: 'png', quality: 0.9 });
+      const fabricJson = JSON.stringify(engineRef.current.toJSON());
+      const imageB64 = engineRef.current.toDataURL({ format: 'png', quality: 0.9 });
 
       const savedRecord = await StorageService.saveDrawing(
         user.uid,
@@ -214,8 +182,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
   // Export Canvas Action
   const handleExport = useCallback(() => {
-    if (!fabricInstanceRef.current) return;
-    const dataUrl = fabricInstanceRef.current.toDataURL({ format: 'png', quality: 1.0 });
+    if (!engineRef.current) return;
+    const dataUrl = engineRef.current.toDataURL({ format: 'png', quality: 1.0 });
     const link = document.createElement('a');
     link.download = `fingerflow-sketch-${Date.now()}.png`;
     link.href = dataUrl;
@@ -225,14 +193,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
   // Clear Canvas Action
   const handleClear = useCallback(() => {
-    if (!fabricInstanceRef.current) return;
-    fabricInstanceRef.current.clear();
-    fabricInstanceRef.current.setBackgroundColor('#090d16', () => {
-      fabricInstanceRef.current?.renderAll();
-      saveCanvasState();
-      showToast('info', 'Canvas cleared.');
-    });
-  }, [saveCanvasState]);
+    if (!engineRef.current) return;
+    engineRef.current.clear();
+    showToast('info', 'Canvas cleared.');
+  }, []);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {
@@ -345,56 +309,34 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         const indexX = primaryLandmarks[8].x * w;
         const indexY = primaryLandmarks[8].y * h;
 
-        // Smooth point using One Euro + Kalman Filter
-        const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
-
-        // Draw pointer tracking circle on overlay HUD
-        ctx.beginPath();
-        ctx.arc(smoothedPoint.x, smoothedPoint.y, tool === 'eraser' ? brushSize * 1.5 : brushSize / 2 + 4, 0, 2 * Math.PI);
-        ctx.fillStyle = tool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${brushColor}70`;
-        ctx.strokeStyle = tool === 'eraser' ? '#ec4899' : brushColor;
-        ctx.lineWidth = 2;
-        ctx.fill();
-        ctx.stroke();
-
-        // Perform Gesture Logic
+        // Perform Gesture Logic using CanvasManager
         if (gestureResult.gesture === 'DRAW') {
-          currentPointsRef.current.push(smoothedPoint);
-
-          if (fabricInstanceRef.current && currentPointsRef.current.length > 1) {
-            const svgPath = StrokeSmoother.pointsToSvgPath(currentPointsRef.current);
-
-            // Remove temporary path
-            if (activePathRef.current) {
-              fabricInstanceRef.current.remove(activePathRef.current);
-            }
-
-            // Create new smooth Fabric Path
-            const pathColor = tool === 'eraser' ? '#090d16' : brushColor;
-            const pathWidth = tool === 'eraser' ? brushSize * 3 : brushSize;
-
-            const path = new fabric.Path(svgPath, {
-              stroke: pathColor,
-              strokeWidth: pathWidth,
-              fill: '',
-              strokeLineCap: 'round',
-              strokeLineJoin: 'round',
-              selectable: false,
-              evented: false,
-            });
-
-            activePathRef.current = path;
-            fabricInstanceRef.current.add(path);
-            fabricInstanceRef.current.renderAll();
+          const smoothedPoint = engineRef.current?.updateStroke(indexX, indexY, now);
+          
+          if (smoothedPoint) {
+            // Draw pointer tracking circle on overlay HUD
+            ctx.beginPath();
+            ctx.arc(smoothedPoint.x, smoothedPoint.y, tool === 'eraser' ? brushSize * 1.5 : brushSize / 2 + 4, 0, 2 * Math.PI);
+            ctx.fillStyle = tool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${brushColor}70`;
+            ctx.strokeStyle = tool === 'eraser' ? '#ec4899' : brushColor;
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
           }
         } else {
           // Finalize path when exiting DRAW mode
-          if (currentPointsRef.current.length > 0) {
-            activePathRef.current = null;
-            currentPointsRef.current = [];
-            strokeSmootherRef.current.reset();
-            saveCanvasState();
-          }
+          engineRef.current?.endStroke();
+          engineRef.current?.beginStroke(); // Ready for next
+
+          // Pointer overlay when not drawing (HOVER)
+          const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
+          ctx.beginPath();
+          ctx.arc(smoothedPoint.x, smoothedPoint.y, tool === 'eraser' ? brushSize * 1.5 : brushSize / 2 + 4, 0, 2 * Math.PI);
+          ctx.fillStyle = tool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${brushColor}70`;
+          ctx.strokeStyle = tool === 'eraser' ? '#ec4899' : brushColor;
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
 
           // Handle Pinch Gesture (Dynamic Brush Size)
           if (gestureResult.gesture === 'PINCH' && gestureResult.pinchDistance !== undefined) {
@@ -407,12 +349,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         setCurrentGesture('NONE');
         setHandCount(0);
         setPrimaryHand('None');
-        if (currentPointsRef.current.length > 0) {
-          activePathRef.current = null;
-          currentPointsRef.current = [];
-          strokeSmootherRef.current.reset();
-          saveCanvasState();
-        }
+        engineRef.current?.endStroke();
+        engineRef.current?.beginStroke();
       }
     });
 
@@ -432,11 +370,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       camera.stop();
       hands.close();
     };
-  }, [isCameraActive, tool, brushColor, brushSize, saveCanvasState]);
+  }, [isCameraActive, tool, brushColor, brushSize]);
 
   const getCanvasImage = useCallback((): string | null => {
-    if (!fabricInstanceRef.current) return null;
-    return fabricInstanceRef.current.toDataURL({ format: 'png', quality: 1.0 });
+    if (!engineRef.current) return null;
+    return engineRef.current.toDataURL({ format: 'png', quality: 1.0 });
   }, []);
 
   return (
@@ -503,8 +441,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         onSaveCloud={handleSaveCloud}
         onOpenMyDrawings={onOpenMyDrawings || (() => {})}
         isSavingCloud={isSavingCloud}
-        canUndo={historyStack.length > 1}
-        canRedo={redoStack.length > 0}
+        canUndo={canUndo}
+        canRedo={canRedo}
         isCameraActive={isCameraActive}
         onToggleCamera={() => setIsCameraActive((prev) => !prev)}
       />
