@@ -12,6 +12,9 @@ import { StatusHUD } from './StatusHUD';
 import { FloatingToolbar } from './FloatingToolbar';
 import { AISidebar } from './AISidebar';
 import { Toast, ToastMessage } from './common/Toast';
+import { GestureOverlay, GestureOverlayProps } from './GestureOverlay';
+import { GestureSettingsModal } from './GestureSettingsModal';
+import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { VideoOff, RefreshCw } from 'lucide-react';
@@ -44,6 +47,14 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [fingerState, setFingerState] = useState<FingerState>({
     thumb: false, index: false, middle: false, ring: false, pinky: false,
   });
+  const [handCount, setHandCount] = useState<number>(0);
+  const [primaryHand, setPrimaryHand] = useState<'Left' | 'Right' | 'None'>('None');
+  const [candidateGestures, setCandidateGestures] = useState<string[]>([]);
+  const [cooldownActive, setCooldownActive] = useState<boolean>(false);
+  
+  // Settings & Overlay state
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
   // History Stack for Undo/Redo
   const [historyStack, setHistoryStack] = useState<string[]>([]);
@@ -152,6 +163,29 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     setToast({ id: Date.now().toString(), type, text });
   };
 
+  const playConfirmationSound = useCallback(() => {
+    const settings = SettingsManager.getSettings();
+    if (!settings.soundEnabled) return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1); // A6
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch (e) {
+      console.error('Audio play failed', e);
+    }
+  }, []);
+
   // Save Drawing to Cloud Storage & Firestore
   const handleSaveCloud = useCallback(async () => {
     if (!fabricInstanceRef.current || !user) return;
@@ -239,7 +273,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     });
 
     hands.setOptions({
-      maxNumHands: 1,
+      maxNumHands: 2, // Multi-hand architecture
       modelComplexity: 1,
       minDetectionConfidence: 0.65,
       minTrackingConfidence: 0.65,
@@ -268,26 +302,48 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         setIsHandDetected(true);
-        const rawLandmarks = results.multiHandLandmarks[0] as Landmark[];
+        
+        // Mirror X for all landmarks in all hands
+        const mirroredHands = results.multiHandLandmarks.map(hand => 
+          hand.map(lm => ({ x: 1 - lm.x, y: lm.y, z: lm.z }))
+        );
 
-        // Mirror X for intuitive web canvas interaction
-        const landmarks = rawLandmarks.map((lm) => ({
-          x: 1 - lm.x,
-          y: lm.y,
-          z: lm.z,
-        }));
-
-        // Classify Gesture using Phase 7 Precision Engine
-        const gestureResult = gestureEngineRef.current.update(landmarks, now);
+        // Classify Gesture using Phase 8 Intelligence Engine
+        const gestureResult = gestureEngineRef.current.update(mirroredHands, results.multiHandedness, now);
+        
         gestureRef.current = gestureResult.gesture;
         setCurrentGesture(gestureResult.gesture);
         setConfidence(gestureResult.confidence);
         setFingerState(gestureResult.fingerState);
         setVelocity(gestureResult.velocity);
+        setHandCount(gestureResult.handCount);
+        setPrimaryHand(gestureResult.primaryHand);
+        setCandidateGestures(gestureResult.candidateGestures);
+        setCooldownActive(gestureResult.cooldownActive);
+
+        // Handle Action Trigger (from GestureRegistry)
+        if (gestureResult.actionTriggered) {
+          const action = gestureResult.actionTriggered;
+          playConfirmationSound();
+          setGestureOverlay({ icon: action.icon, name: action.name, durationMs: SettingsManager.getSettings().confirmationDurationMs });
+
+          switch (action.action) {
+            case 'UNDO': handleUndo(); break;
+            case 'REDO': handleRedo(); break;
+            case 'SAVE_CLOUD': handleSaveCloud(); break;
+            case 'EXPORT_PNG': handleExport(); break;
+            case 'CLEAR_CANVAS': handleClear(); break;
+            case 'ERASER_MODE': setTool('eraser'); break;
+            // Add other logical hooks when those features are fully built in the UI
+            default: break;
+          }
+        }
+
+        const primaryLandmarks = mirroredHands[0];
 
         // Index tip position in canvas coordinates
-        const indexX = landmarks[8].x * w;
-        const indexY = landmarks[8].y * h;
+        const indexX = primaryLandmarks[8].x * w;
+        const indexY = primaryLandmarks[8].y * h;
 
         // Smooth point using One Euro + Kalman Filter
         const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
@@ -349,6 +405,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       } else {
         setIsHandDetected(false);
         setCurrentGesture('NONE');
+        setHandCount(0);
+        setPrimaryHand('None');
         if (currentPointsRef.current.length > 0) {
           activePathRef.current = null;
           currentPointsRef.current = [];
@@ -423,6 +481,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         confidence={confidence}
         fingerState={fingerState}
         velocity={velocity}
+        handCount={handCount}
+        primaryHand={primaryHand}
+        candidateGestures={candidateGestures}
+        cooldownActive={cooldownActive}
       />
 
       <AISidebar getCanvasImage={getCanvasImage} />
@@ -446,6 +508,34 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         isCameraActive={isCameraActive}
         onToggleCamera={() => setIsCameraActive((prev) => !prev)}
       />
+
+      {gestureOverlay && (
+        <GestureOverlay 
+          icon={gestureOverlay.icon} 
+          name={gestureOverlay.name} 
+          durationMs={gestureOverlay.durationMs} 
+        />
+      )}
+
+      {showSettings && (
+        <GestureSettingsModal 
+          onClose={() => setShowSettings(false)}
+          onSave={() => setShowSettings(false)}
+        />
+      )}
+
+      <button 
+        onClick={() => setShowSettings(true)}
+        style={{
+          position: 'absolute', top: '1rem', right: '1rem', zIndex: 20,
+          background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.1)',
+          color: '#cbd5e1', padding: '0.75rem', borderRadius: '50%', cursor: 'pointer',
+          backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}
+        title="Gesture Settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

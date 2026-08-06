@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Hand, Edit3, Eraser, Pause, Maximize2, Cpu, Zap } from 'lucide-react';
+import { Activity, Hand, Edit3, Eraser, Pause, Maximize2, Cpu, Zap, HandMetal, CheckCircle } from 'lucide-react';
 import { GestureType, FingerState } from '../services/gestureClassifier';
 
 interface StatusHUDProps {
@@ -12,6 +12,10 @@ interface StatusHUDProps {
   confidence: number;
   fingerState: FingerState;
   velocity: number;
+  handCount: number;
+  primaryHand: 'Left' | 'Right' | 'None';
+  candidateGestures: string[];
+  cooldownActive: boolean;
 }
 
 export const StatusHUD: React.FC<StatusHUDProps> = ({
@@ -24,6 +28,10 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
   confidence,
   fingerState,
   velocity,
+  handCount,
+  primaryHand,
+  candidateGestures,
+  cooldownActive,
 }) => {
   const getGestureBadge = () => {
     if (!isHandDetected) {
@@ -97,14 +105,26 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
       {/* Diagnostics Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <HandMetal size={12} color="#60a5fa" />
+          <span>Hands:</span>
+          <span style={{ color: '#f8fafc', fontWeight: 600 }}>{handCount} ({primaryHand})</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <Cpu size={12} color="#818cf8" />
-          <span>Confidence:</span>
+          <span>Conf:</span>
           <span style={{ color: confPercent >= 90 ? '#10b981' : '#f59e0b', fontWeight: 600 }}>{confPercent}%</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <Zap size={12} color="#facc15" />
-          <span>Velocity:</span>
-          <span style={{ color: '#f8fafc', fontWeight: 600 }}>{velocity.toFixed(1)} u/s</span>
+          <span>Vel:</span>
+          <span style={{ color: '#f8fafc', fontWeight: 600 }}>{velocity.toFixed(0)} u/s</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <CheckCircle size={12} color={cooldownActive ? '#ef4444' : '#10b981'} />
+          <span>Engine:</span>
+          <span style={{ color: cooldownActive ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+            {cooldownActive ? 'COOLDOWN' : 'READY'}
+          </span>
         </div>
         
         {/* Finger State Matrix */}
@@ -139,6 +159,13 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Candidate Gestures (Intelligence Engine) */}
+        {candidateGestures.length > 0 && (
+          <div style={{ gridColumn: '1 / -1', color: '#c084fc', fontSize: '0.7rem', fontStyle: 'italic', marginTop: '2px' }}>
+            Detecting: {candidateGestures.join(', ')}...
+          </div>
+        )}
       </div>
 
       <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.15)', margin: '4px 0' }} />
