@@ -1,17 +1,26 @@
 import { Command } from '../Command';
 import { fabric } from 'fabric';
+import { LayerManager } from '../LayerManager';
 
 export class AddPathCommand implements Command {
-  constructor(private canvas: fabric.Canvas, private path: fabric.Path) {}
+  private objects: fabric.Object[];
+
+  constructor(
+    private canvas: fabric.Canvas, 
+    pathOrPaths: fabric.Object | fabric.Object[], 
+    private layers: LayerManager
+  ) {
+    this.objects = Array.isArray(pathOrPaths) ? pathOrPaths : [pathOrPaths];
+  }
 
   execute() {
-    this.canvas.add(this.path);
-    this.canvas.renderAll();
+    this.objects.forEach(obj => this.canvas.add(obj));
+    this.layers.renderLayers();
   }
 
   undo() {
-    this.canvas.remove(this.path);
-    this.canvas.renderAll();
+    this.objects.forEach(obj => this.canvas.remove(obj));
+    this.canvas.requestRenderAll();
   }
 }
 

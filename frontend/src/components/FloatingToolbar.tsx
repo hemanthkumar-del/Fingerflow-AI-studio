@@ -32,6 +32,7 @@ interface FloatingToolbarProps {
   canRedo: boolean;
   isCameraActive: boolean;
   onToggleCamera: () => void;
+  onOpenBrushStudio: () => void;
 }
 
 const PRESET_COLORS = [
@@ -62,6 +63,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   canRedo,
   isCameraActive,
   onToggleCamera,
+  onOpenBrushStudio,
 }) => {
   return (
     <div

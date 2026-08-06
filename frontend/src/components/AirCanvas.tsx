@@ -16,6 +16,7 @@ import { GestureOverlay, GestureOverlayProps } from './GestureOverlay';
 import { GestureSettingsModal } from './GestureSettingsModal';
 import { LayerPanel } from './LayerPanel';
 import { SelectionToolbar } from './SelectionToolbar';
+import { BrushStudio } from './BrushStudio';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -58,6 +59,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   
   // Settings & Overlay state
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showBrushStudio, setShowBrushStudio] = useState<boolean>(false);
   const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
   // History State
@@ -532,6 +534,14 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
       <AISidebar getCanvasImage={getCanvasImage} />
 
+      {engineRef.current && (
+        <BrushStudio
+          engine={engineRef.current}
+          isOpen={showBrushStudio}
+          onClose={() => setShowBrushStudio(false)}
+        />
+      )}
+
       <FloatingToolbar
         tool={tool}
         setTool={setTool}
@@ -550,6 +560,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         canRedo={canRedo}
         isCameraActive={isCameraActive}
         onToggleCamera={() => setIsCameraActive((prev) => !prev)}
+        onOpenBrushStudio={() => setShowBrushStudio(true)}
       />
 
       {gestureOverlay && (

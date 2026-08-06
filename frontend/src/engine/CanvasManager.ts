@@ -28,7 +28,7 @@ export class CanvasManager {
 
   // Temporary path handling for gestures
   private currentPoints: Point[] = [];
-  private activeTempPath: fabric.Path | null = null;
+  private activeTempPaths: fabric.Object[] = [];
   private strokeSmoother: StrokeSmoother;
 
   constructor(canvasElement: HTMLCanvasElement, config: EngineConfig) {
@@ -124,9 +124,9 @@ export class CanvasManager {
     }
 
     this.currentPoints = [];
-    if (this.activeTempPath) {
-      this.canvas.remove(this.activeTempPath);
-      this.activeTempPath = null;
+    if (this.activeTempPaths.length > 0) {
+      this.activeTempPaths.forEach(p => this.canvas.remove(p));
+      this.activeTempPaths = [];
     }
   }
 
@@ -139,55 +139,90 @@ export class CanvasManager {
     this.currentPoints.push(smoothed);
 
     if (this.currentPoints.length > 1) {
-      if (this.activeTempPath) {
-        this.canvas.remove(this.activeTempPath);
+      if (this.activeTempPaths.length > 0) {
+        this.activeTempPaths.forEach(p => this.canvas.remove(p));
+        this.activeTempPaths = [];
       }
 
-      const svgPath = StrokeSmoother.pointsToSvgPath(this.currentPoints);
       const isEraser = this.tool.getTool() === 'eraser';
       const config = this.brush.getConfig();
       
-      const pathColor = isEraser ? '#090d16' : config.color;
-      const pathWidth = isEraser ? config.size * 3 : config.size;
+      // Calculate velocity for the stroke end
+      const last = this.currentPoints[this.currentPoints.length - 1];
+      const prev = this.currentPoints[this.currentPoints.length - 2];
+      const dx = last.x - prev.x;
+      const dy = last.y - prev.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const velocityScale = isEraser ? 1 : Math.max(0.1, 1 - (dist / 100) * config.velocitySensitivity);
 
-      this.activeTempPath = new fabric.Path(svgPath, {
-        stroke: pathColor,
-        strokeWidth: pathWidth,
-        fill: '',
-        strokeLineCap: 'round',
-        strokeLineJoin: 'round',
-        selectable: false,
-        evented: false,
-        opacity: config.opacity
+      let paths: fabric.Object[] = [];
+      
+      if (isEraser) {
+        // Eraser logic
+        const svgPath = StrokeSmoother.pointsToSvgPath(this.currentPoints);
+        const eraserPath = new fabric.Path(svgPath, {
+          stroke: '#090d16',
+          strokeWidth: config.size * 3,
+          fill: '',
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          selectable: false,
+          evented: false,
+        });
+        paths = [eraserPath];
+      } else {
+        const plugin = this.brush.getActivePlugin();
+        const result = plugin.createPath(
+          this.currentPoints, 
+          config.color, 
+          config.size, 
+          config.opacity, 
+          config.physics,
+          velocityScale
+        );
+        if (result) {
+          paths = Array.isArray(result) ? result : [result];
+        }
+      }
+
+      paths.forEach(p => {
+        p.set({ selectable: false, evented: false });
+        this.canvas.add(p);
       });
-
-      // Tag Metadata for Layering and Export
-      (this.activeTempPath as any).id = `path-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      (this.activeTempPath as any).layerId = activeLayer.id;
-      (this.activeTempPath as any).createdAt = timestamp;
-      (this.activeTempPath as any).brushType = this.tool.getTool();
-      (this.activeTempPath as any).aiGenerated = false;
-
-      this.canvas.add(this.activeTempPath);
-      this.layers.renderLayers(); // Ensure it renders at correct z-index
+      this.activeTempPaths = paths;
+      this.canvas.requestRenderAll();
     }
+
     return smoothed;
   }
 
   public endStroke() {
-    if (this.activeTempPath && this.currentPoints.length > 1) {
-      // Create a final command for history
-      const finalPath = this.activeTempPath;
-      this.activeTempPath = null;
+    if (this.currentPoints.length > 1 && this.activeTempPaths.length > 0) {
+      const activeLayerId = this.layers.getActiveLayerId();
+      if (!activeLayerId) return;
+
+      this.activeTempPaths.forEach(path => {
+        // Stamp metadata onto each object created by the plugin
+        (path as any).layerId = activeLayerId;
+        (path as any).createdAt = Date.now();
+        (path as any).brushType = this.tool.getTool();
+        (path as any).id = `path-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+        (path as any).aiGenerated = false;
+        
+        path.set({
+          selectable: this.tool.getTool() === 'selection',
+          evented: this.tool.getTool() === 'selection'
+        });
+      });
+
+      // Clear temp array but keep objects on canvas
+      const pathsToSave = [...this.activeTempPaths];
+      this.activeTempPaths = [];
       
-      // We don't need to add it again, it's already added, but we want the command to track it.
-      // Actually, if we just push the AddPathCommand, and then execute it, it will be added again.
-      // So we remove it first, then execute command.
-      this.canvas.remove(finalPath);
-      const cmd = new AddPathCommand(this.canvas, finalPath);
-      this.history.execute(cmd);
+      pathsToSave.forEach(p => this.canvas.remove(p));
+      const command = new AddPathCommand(this.canvas, pathsToSave, this.layers);
+      this.history.execute(command);
     }
-    
     this.currentPoints = [];
     this.strokeSmoother.reset();
   }
