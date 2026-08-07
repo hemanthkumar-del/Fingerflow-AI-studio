@@ -27,6 +27,32 @@ FingerFlow Studio is a professional AI-powered gesture drawing studio built for 
 - **Auto-Save & Cloud Sync**: Seamless integration with Firebase for instant cloud storage.
 - **Export Studio**: High-res PNG, JPEG, vector SVG, multi-page PDF, and raw `.ffstudio` projects.
 
+## Gallery
+Check out the clean, modern interface of FingerFlow Studio.
+
+<div align="center">
+  <img src="docs/screenshots/01-home.png" alt="Home Screen" width="45%" />
+  <img src="docs/screenshots/02-login.png" alt="Login Screen" width="45%" />
+  <br/>
+  <img src="docs/screenshots/03-workspace.png" alt="Main Workspace" width="45%" />
+  <img src="docs/screenshots/04-gesture-drawing.png" alt="Gesture Drawing" width="45%" />
+  <br/>
+  <img src="docs/screenshots/05-brush-studio.png" alt="Brush Studio" width="45%" />
+  <img src="docs/screenshots/06-layer-studio.png" alt="Layer Studio" width="45%" />
+  <br/>
+  <img src="docs/screenshots/07-selection.png" alt="Selection Studio" width="45%" />
+  <img src="docs/screenshots/08-infinite-canvas.png" alt="Infinite Canvas" width="45%" />
+  <br/>
+  <img src="docs/screenshots/09-shapes.png" alt="Shapes" width="45%" />
+  <img src="docs/screenshots/10-ai-sidebar.png" alt="AI Sidebar" width="45%" />
+  <br/>
+  <img src="docs/screenshots/11-replay.png" alt="Replay Engine" width="45%" />
+  <img src="docs/screenshots/12-export.png" alt="Export Studio" width="45%" />
+  <br/>
+  <img src="docs/screenshots/13-developer-mode.png" alt="Developer Mode" width="45%" />
+  *(Preferences and About Dialog omitted due to API quotas)*
+</div>
+
 ## Architecture
 FingerFlow Studio follows a modular, plugin-based Architecture.
 
