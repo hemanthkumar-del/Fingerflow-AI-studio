@@ -43,11 +43,18 @@ export class GestureEngine {
   private lastTime: number = -1;
   private currentVelocity: number = 0;
   private velocityVec = { dx: 0, dy: 0, speed: 0 };
+  private trackingLossFrames: number = 0;
+  private lastGestureResult: GestureResult | null = null;
+  private continuousFrames: number = 0;
+  private candidateContinuousGesture: GestureType = 'NONE';
   
   // Intelligent Registry State
   private candidateStartTime: Record<string, number> = {};
+  private candidateFrameCount: Record<string, number> = {};
   private lastActionTriggerTime: number = 0;
   private activeCooldownMs: number = 0;
+  private currentActiveStaticGesture: string | null = null;
+  private currentActiveStaticConfidence: number = 0;
 
   public update(multiHandLandmarks: Landmark[][], handedness: any[], timestamp: number = performance.now()): GestureResult {
     const settings = SettingsManager.getSettings();
@@ -60,7 +67,16 @@ export class GestureEngine {
     }
 
     if (!landmarks || landmarks.length < 21) {
+      this.trackingLossFrames++;
+      if (this.trackingLossFrames <= 3 && this.lastGestureResult) {
+        return this.lastGestureResult; // Hold state for a few frames
+      }
+      this.lastContinuousGesture = 'NONE';
+      this.continuousFrames = 0;
+      this.currentActiveStaticGesture = null;
       return this.resetResult(handCount, primaryHand);
+    } else {
+      this.trackingLossFrames = 0;
     }
 
     // 1. Velocity & Trajectory (Dynamic Swipes)
@@ -110,17 +126,20 @@ export class GestureEngine {
       candidateConfidence = 0.95;
     }
 
-    // Continuous Debounce
-    const debounceMsContinuous = 200 * settings.globalDebounceMultiplier;
-    if (candidateGesture !== this.lastContinuousGesture) {
-      if (this.continuousStartTime === -1) {
-        this.continuousStartTime = timestamp;
-      } else if (timestamp - this.continuousStartTime >= debounceMsContinuous) {
-        this.lastContinuousGesture = candidateGesture;
-        this.continuousStartTime = -1;
-      }
+    // Continuous Frame Stability
+    if (candidateGesture === this.candidateContinuousGesture) {
+      this.continuousFrames++;
     } else {
-      this.continuousStartTime = -1;
+      this.candidateContinuousGesture = candidateGesture;
+      this.continuousFrames = 1;
+    }
+
+    const requiredFrames = candidateGesture === 'PINCH' ? 3 : 2;
+
+    if (this.candidateContinuousGesture !== this.lastContinuousGesture) {
+      if (this.continuousFrames >= requiredFrames) {
+        this.lastContinuousGesture = this.candidateContinuousGesture;
+      }
     }
 
 
@@ -143,36 +162,66 @@ export class GestureEngine {
           
           if (!this.candidateStartTime[g.id]) {
             this.candidateStartTime[g.id] = timestamp;
+            this.candidateFrameCount[g.id] = 1;
+          } else {
+            this.candidateFrameCount[g.id]++;
           }
         } else {
           delete this.candidateStartTime[g.id]; // Reset debounce if lost
+          delete this.candidateFrameCount[g.id];
         }
       }
 
-      // Conflict Resolution: Filter by debounce, then Sort by Priority -> Confidence
-      const passedDebounce = validCandidates.filter(c => {
+      // Conflict Resolution: Filter by debounce & stability frames, then Hysteresis -> Priority -> Confidence
+      const passedStability = validCandidates.filter(c => {
         const requiredDebounce = c.g.debounceMs * settings.globalDebounceMultiplier;
-        return (timestamp - this.candidateStartTime[c.g.id]) >= requiredDebounce;
+        const requiredFrames = c.g.stabilityFrames || 2;
+        const timePassed = (timestamp - this.candidateStartTime[c.g.id]) >= requiredDebounce;
+        const framesPassed = this.candidateFrameCount[c.g.id] >= requiredFrames;
+        
+        // Hysteresis Margin: If there's an active static gesture, a competing gesture must beat it by a margin
+        if (this.currentActiveStaticGesture && this.currentActiveStaticGesture !== c.g.id) {
+           const margin = c.g.hysteresisMargin || 5;
+           if (c.conf < this.currentActiveStaticConfidence + margin) {
+             return false;
+           }
+        }
+
+        return timePassed && framesPassed;
       });
 
-      if (passedDebounce.length > 0) {
-        passedDebounce.sort((a, b) => {
+      if (passedStability.length > 0) {
+        passedStability.sort((a, b) => {
           if (b.g.priority !== a.g.priority) return b.g.priority - a.g.priority;
           return b.conf - a.conf;
         });
 
         // TRIGGER ACTION!
-        const winner = passedDebounce[0].g;
+        const winner = passedStability[0].g;
         actionTriggered = winner;
         this.lastActionTriggerTime = timestamp;
         this.activeCooldownMs = winner.cooldownMs; // Lock engine
         
+        // Lock static hysteresis
+        if (winner.type === 'STATIC') {
+          this.currentActiveStaticGesture = winner.id;
+          this.currentActiveStaticConfidence = passedStability[0].conf;
+        } else {
+          this.currentActiveStaticGesture = null;
+        }
+        
         // Reset all candidate timers so they don't fire again immediately after cooldown
         this.candidateStartTime = {};
+        this.candidateFrameCount = {};
+      } else {
+        // Decay active static confidence if it's no longer the top candidate
+        if (this.currentActiveStaticGesture && !validCandidates.find(c => c.g.id === this.currentActiveStaticGesture)) {
+          this.currentActiveStaticGesture = null;
+        }
       }
     }
 
-    return {
+    this.lastGestureResult = {
       gesture: this.lastContinuousGesture,
       confidence: candidateConfidence,
       pinchDistance: this.lastContinuousGesture === 'PINCH' ? normalizedPinchDist : undefined,
@@ -184,6 +233,7 @@ export class GestureEngine {
       cooldownActive: isCooldownActive,
       actionTriggered
     };
+    return this.lastGestureResult;
   }
 
   private resetResult(handCount: number, primaryHand: 'Left' | 'Right' | 'None'): GestureResult {

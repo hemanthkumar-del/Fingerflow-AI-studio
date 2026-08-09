@@ -35,7 +35,6 @@ const STYLE_PRESETS = [
 ];
 
 export const AISidebar: React.FC<AISidebarProps> = ({ getCanvasImage }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'enhance' | 'analyze' | 'ocr' | 'shapes'>('enhance');
 
   // Loading states
@@ -111,77 +110,14 @@ export const AISidebar: React.FC<AISidebarProps> = ({ getCanvasImage }) => {
   };
 
   return (
-    <>
-      {/* Floating Sidebar Toggle Button */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="glass-panel"
-          style={{
-            position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            zIndex: 25,
-            padding: '10px 16px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(168, 85, 247, 0.4))',
-            border: '1px solid rgba(192, 132, 252, 0.4)',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            cursor: 'pointer',
-            fontWeight: 700,
-            boxShadow: '0 0 20px rgba(168, 85, 247, 0.4)',
-          }}
-        >
-          <Sparkles size={18} color="#c084fc" />
-          <span>Gemini AI Studio</span>
-        </button>
-      )}
-
-      {/* Slide-out Glassmorphism Sidebar Panel */}
-      {isOpen && (
-        <div
-          className="glass-panel"
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '380px',
-            height: '100vh',
-            zIndex: 40,
-            display: 'flex',
-            flexDirection: 'column',
-            borderLeft: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '0',
-            boxShadow: '-10px 0 40px rgba(0,0,0,0.6)',
-            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              padding: '1.25rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <div style={{ background: '#a855f720', padding: '6px', borderRadius: '8px' }}>
-                <Sparkles size={20} color="#c084fc" />
-              </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>AI Assistant</h3>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-            >
-              <X size={20} />
-            </button>
-          </div>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
 
           {/* Navigation Tabs */}
           <div
@@ -502,7 +438,5 @@ export const AISidebar: React.FC<AISidebarProps> = ({ getCanvasImage }) => {
             )}
           </div>
         </div>
-      )}
-    </>
   );
 };

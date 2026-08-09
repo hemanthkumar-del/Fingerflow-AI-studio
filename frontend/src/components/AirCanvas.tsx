@@ -10,11 +10,10 @@ import { GestureEngine, GestureType, Landmark, FingerState } from '../services/g
 import { StrokeSmoother, Point } from '../services/strokeSmoother';
 import { StatusHUD } from './StatusHUD';
 import { FloatingToolbar } from './FloatingToolbar';
-import { AISidebar } from './AISidebar';
+import { StudioSidebar } from './StudioSidebar';
 import { Toast, ToastMessage } from './common/Toast';
 import { GestureOverlay, GestureOverlayProps } from './GestureOverlay';
 import { GestureSettingsModal } from './GestureSettingsModal';
-import { LayerPanel } from './LayerPanel';
 import { SelectionToolbar } from './SelectionToolbar';
 import { BrushStudio } from './BrushStudio';
 import { ShapeToolbar } from './ShapeToolbar';
@@ -556,8 +555,6 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         cooldownActive={cooldownActive}
       />
 
-      <AISidebar getCanvasImage={getCanvasImage} />
-
       {engineRef.current && (
         <>
           <BrushStudio
@@ -676,10 +673,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
       {engineRef.current && (
         <>
-          <LayerPanel 
+          <StudioSidebar 
             engine={engineRef.current}
             layers={layers}
             activeLayerId={activeLayerId}
+            getCanvasImage={getCanvasImage}
           />
           <SelectionToolbar engine={engineRef.current} />
         </>

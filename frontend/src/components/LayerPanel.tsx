@@ -34,19 +34,11 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({ engine, layers, activeLa
 
   return (
     <div style={{
-      position: 'absolute',
-      right: '20px',
-      top: '20px',
-      width: '280px',
-      backgroundColor: '#111827',
-      borderRadius: '12px',
-      border: '1px solid #374151',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+      width: '100%',
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      zIndex: 50,
       color: '#fff',
-      maxHeight: '70vh'
     }}>
       <div style={{
         padding: '12px 16px',

@@ -29,6 +29,8 @@ export interface GestureDefinition {
   priority: number; // Higher number = higher priority
   cooldownMs: number; // Time before it can trigger again
   debounceMs: number; // Time the gesture must be held/recognized continuously
+  stabilityFrames: number; // Number of consistent frames required
+  hysteresisMargin?: number; // Margin required to override current stable gesture
   check: (landmarks: Landmark[], fingerState: FingerState, velocityVec?: {dx: number, dy: number, speed: number}) => number; // Returns confidence 0-100
 }
 
@@ -47,6 +49,8 @@ export class GestureRegistry {
         priority: 10,
         cooldownMs: 2000,
         debounceMs: 400,
+        stabilityFrames: 3,
+        hysteresisMargin: 5,
         check: (lm, fs) => {
           if (fs.thumb && !fs.index && !fs.middle && !fs.ring && !fs.pinky) {
             // Check if thumb is pointing UP (y of tip is much less than y of base)
@@ -65,6 +69,8 @@ export class GestureRegistry {
         priority: 10,
         cooldownMs: 1000,
         debounceMs: 400,
+        stabilityFrames: 3,
+        hysteresisMargin: 5,
         check: (lm, fs) => {
           if (fs.thumb && !fs.index && !fs.middle && !fs.ring && !fs.pinky) {
             // Check if thumb is pointing DOWN
@@ -83,6 +89,8 @@ export class GestureRegistry {
         priority: 5,
         cooldownMs: 500,
         debounceMs: 300,
+        stabilityFrames: 3,
+        hysteresisMargin: 5,
         check: (lm, fs) => {
           if (!fs.thumb && !fs.index && !fs.middle && !fs.ring && !fs.pinky) {
             return 90;
@@ -100,6 +108,8 @@ export class GestureRegistry {
         priority: 8,
         cooldownMs: 500,
         debounceMs: 300,
+        stabilityFrames: 3,
+        hysteresisMargin: 5,
         check: (lm, fs) => {
           if (!fs.thumb && fs.index && fs.middle && !fs.ring && !fs.pinky) {
             return 92;
@@ -117,6 +127,8 @@ export class GestureRegistry {
         priority: 8,
         cooldownMs: 500,
         debounceMs: 300,
+        stabilityFrames: 3,
+        hysteresisMargin: 5,
         check: (lm, fs) => {
           if (!fs.thumb && fs.index && fs.middle && fs.ring && !fs.pinky) {
             return 90;
@@ -134,6 +146,8 @@ export class GestureRegistry {
         priority: 15,
         cooldownMs: 3000,
         debounceMs: 600,
+        stabilityFrames: 4,
+        hysteresisMargin: 8,
         check: (lm, fs) => {
           if (fs.thumb && fs.index && !fs.middle && !fs.ring && fs.pinky) {
             return 95;
@@ -151,6 +165,8 @@ export class GestureRegistry {
         priority: 15,
         cooldownMs: 3000,
         debounceMs: 600,
+        stabilityFrames: 4,
+        hysteresisMargin: 8,
         check: (lm, fs) => {
           if (!fs.thumb && fs.index && !fs.middle && !fs.ring && fs.pinky) {
             return 95;
@@ -168,6 +184,8 @@ export class GestureRegistry {
         priority: 15,
         cooldownMs: 1500,
         debounceMs: 400,
+        stabilityFrames: 4,
+        hysteresisMargin: 8,
         check: (lm, fs) => {
           // Thumb and index touching (pinched), middle/ring/pinky up
           if (fs.middle && fs.ring && fs.pinky) {
@@ -190,6 +208,8 @@ export class GestureRegistry {
         priority: 5,
         cooldownMs: 2000,
         debounceMs: 800, // needs to be held longer so PAUSE doesn't trigger Dash
+        stabilityFrames: 2,
+        hysteresisMargin: 4,
         check: (lm, fs) => {
           if (fs.thumb && fs.index && fs.middle && fs.ring && fs.pinky) {
             return 85;
@@ -207,6 +227,7 @@ export class GestureRegistry {
         priority: 20,
         cooldownMs: 1000,
         debounceMs: 0, // Swipes trigger instantly on vector
+        stabilityFrames: 1, // Instantly
         check: (lm, fs, vel) => {
           if (vel && vel.speed > 800 && vel.dx < -0.8 && Math.abs(vel.dy) < 0.4) {
             return Math.min(100, (vel.speed / 2000) * 100);
@@ -224,6 +245,7 @@ export class GestureRegistry {
         priority: 20,
         cooldownMs: 1000,
         debounceMs: 0,
+        stabilityFrames: 1,
         check: (lm, fs, vel) => {
           if (vel && vel.speed > 800 && vel.dx > 0.8 && Math.abs(vel.dy) < 0.4) {
             return Math.min(100, (vel.speed / 2000) * 100);
@@ -241,6 +263,7 @@ export class GestureRegistry {
         priority: 20,
         cooldownMs: 1000,
         debounceMs: 0,
+        stabilityFrames: 1,
         check: (lm, fs, vel) => {
           if (vel && vel.speed > 800 && vel.dy < -0.8 && Math.abs(vel.dx) < 0.4) {
             return Math.min(100, (vel.speed / 2000) * 100);
@@ -258,6 +281,7 @@ export class GestureRegistry {
         priority: 20,
         cooldownMs: 2000,
         debounceMs: 0,
+        stabilityFrames: 1,
         check: (lm, fs, vel) => {
           if (vel && vel.speed > 800 && vel.dy > 0.8 && Math.abs(vel.dx) < 0.4) {
             return Math.min(100, (vel.speed / 2000) * 100);
