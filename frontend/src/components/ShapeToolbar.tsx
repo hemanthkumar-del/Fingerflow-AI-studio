@@ -32,7 +32,7 @@ export const ShapeToolbar: React.FC<ShapeToolbarProps> = ({ engine }) => {
   const plugins = engine.shape.getPlugins();
 
   return (
-    <div style={{
+    <div data-tour="shapes" style={{
       position: 'absolute',
       bottom: '100px', // Right above the floating toolbar
       left: '50%',

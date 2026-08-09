@@ -24,6 +24,7 @@ import { CommandPalette } from './CommandPalette';
 import { ShortcutsModal } from './ShortcutsModal';
 import { PreferencesModal } from './PreferencesModal';
 import { AboutDialog } from './AboutDialog';
+import { HelpCenter } from './onboarding/HelpCenter';
 import { SettingsManager } from '../services/gestureSettings';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -75,6 +76,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
   const [showPreferences, setShowPreferences] = useState<boolean>(false);
   const [showAbout, setShowAbout] = useState<boolean>(false);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
   const [gestureOverlay, setGestureOverlay] = useState<GestureOverlayProps | null>(null);
 
   // History State
@@ -520,7 +522,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       />
 
       {/* Fabric.js Interactive Vector Canvas */}
-      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
+      <div data-tour="canvas" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
         <canvas ref={fabricCanvasRef} />
       </div>
 
@@ -595,6 +597,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
             isOpen={showAbout}
             onClose={() => setShowAbout(false)}
           />
+          
+          <HelpCenter
+            isOpen={showHelp}
+            onClose={() => setShowHelp(false)}
+          />
         </>
       )}
 
@@ -633,6 +640,13 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           title="Shortcuts"
         >
           ⌨️
+        </button>
+        <button 
+          onClick={() => setShowHelp(true)}
+          style={{ background: '#1f2937', color: 'white', padding: '8px', borderRadius: '8px', border: '1px solid #374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          title="Help Center"
+        >
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#a855f7', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</span>
         </button>
         <button 
           onClick={() => {

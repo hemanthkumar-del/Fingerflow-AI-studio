@@ -59,6 +59,7 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
 
   return (
     <div
+      data-tour="status-hud"
       className="glass-panel"
       style={{
         position: 'absolute',

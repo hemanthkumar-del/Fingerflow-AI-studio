@@ -83,7 +83,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       }}
     >
       {/* Tool Selectors */}
-      <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '12px' }}>
+      <div data-tour="brushes" style={{ display: 'flex', gap: '0.4rem', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '12px' }}>
         <button
           onClick={() => setTool('brush')}
           style={{
@@ -124,6 +124,28 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         >
           <Eraser size={16} />
           <span>Eraser</span>
+        </button>
+        
+        <button
+          data-tour="selection"
+          onClick={() => setTool('selection')}
+          style={{
+            background: tool === 'selection' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+            border: 'none',
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            transition: 'all 0.2s',
+          }}
+        >
+          <MousePointer2 size={16} />
+          <span>Select</span>
         </button>
       </div>
 
@@ -260,6 +282,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </button>
 
         <button
+          data-tour="export"
           onClick={onExport}
           title="Export Sketch"
           style={{

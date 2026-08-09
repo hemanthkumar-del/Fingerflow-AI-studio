@@ -84,6 +84,7 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
         >
           <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
             <button
+              data-tour="layers"
               onClick={() => setActiveTab('layers')}
               style={{
                 flex: 1,
@@ -106,6 +107,7 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
               Layers
             </button>
             <button
+              data-tour="ai-studio"
               onClick={() => setActiveTab('ai')}
               style={{
                 flex: 1,

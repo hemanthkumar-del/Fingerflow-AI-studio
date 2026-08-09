@@ -3,6 +3,9 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { EnvBanner } from './components/common/EnvBanner';
 import { DrawingRecord } from './services/storageService';
 import { Loader2, Hand } from 'lucide-react';
+import { OnboardingProvider } from './components/onboarding/OnboardingProvider';
+import { WelcomeModal } from './components/onboarding/WelcomeModal';
+import { GuidedTour } from './components/onboarding/GuidedTour';
 import './App.css';
 
 // Lazy-loaded components for optimal bundle performance
@@ -58,25 +61,29 @@ export const App: React.FC = () => {
   };
 
   return (
-    <ProtectedRoute>
-      <EnvBanner />
-      <Suspense fallback={<PageLoader />}>
-        {view === 'studio' ? (
-          <AirCanvas
-            initialDrawing={editingDrawing}
-            onOpenMyDrawings={() => setView('gallery')}
-          />
-        ) : (
-          <MyDrawingsPage
-            onBackToStudio={() => {
-              setEditingDrawing(null);
-              setView('studio');
-            }}
-            onReopenDrawing={handleReopenDrawing}
-          />
-        )}
-      </Suspense>
-    </ProtectedRoute>
+    <OnboardingProvider>
+      <ProtectedRoute>
+        <EnvBanner />
+        <WelcomeModal />
+        <GuidedTour />
+        <Suspense fallback={<PageLoader />}>
+          {view === 'studio' ? (
+            <AirCanvas
+              initialDrawing={editingDrawing}
+              onOpenMyDrawings={() => setView('gallery')}
+            />
+          ) : (
+            <MyDrawingsPage
+              onBackToStudio={() => {
+                setEditingDrawing(null);
+                setView('studio');
+              }}
+              onReopenDrawing={handleReopenDrawing}
+            />
+          )}
+        </Suspense>
+      </ProtectedRoute>
+    </OnboardingProvider>
   );
 };
 

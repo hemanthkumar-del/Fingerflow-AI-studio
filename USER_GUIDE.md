@@ -1,63 +1,112 @@
-# FingerFlow Studio - User Guide
+# FingerFlow Studio User Guide
 
 Welcome to FingerFlow Studio! This guide will teach you how to get the most out of your touchless creative workspace.
 
 ## Getting Started
-Ensure your webcam is enabled and your lighting is adequate. FingerFlow Studio relies on clear visibility of your hands to translate gestures accurately.
+FingerFlow Studio lets you draw, edit, organize, and create on an infinite canvas using natural hand gestures. 
+
+## First-Time Setup
+When you first log in, you will be greeted by the Interactive Guided Tour. This tour will highlight the major components of your workspace. If you skipped it, you can replay the tour at any time by clicking the **Help (?)** button in the top left and selecting "Replay Guided Tour".
+
+## Camera & Lighting
+FingerFlow Studio relies on clear visibility of your hands to translate gestures accurately.
+**Good Conditions:**
+- Front-facing light
+- Clear hand visibility
+- Contrasting background
+- Hand inside camera frame
+- Moderate distance from camera
+
+**Avoid:**
+- Very dark rooms
+- Strong light behind your hand
+- Rapidly moving hand outside the frame
+- Hand blending into background
+- Covering fingers
+
+## Understanding the Workspace
+- **Status HUD (Top Left):** Tells you whether your hand is detected and shows the current action (e.g. Draw, Pan Canvas).
+- **Studio Sidebar (Right):** Houses your Layers and the AI Studio.
+- **Floating Toolbar (Bottom):** Contains your active tools (Brush, Eraser, Selection, Export).
+- **Shape Toolbar (Above Floating Toolbar):** Contains geometric shape stamps.
+- **Top Left Controls:** Access Preferences, Shortcuts, Session Replay, Help, and About.
+
+## Gesture Guide
+Hold your hand steady for a moment when switching gestures to ensure stable recognition.
+
+- ☝️ **Index Finger:** Draw / Move objects
+- 🖐️ **Open Palm:** Pan Canvas / Home Dash
+- ✌️ **Peace Sign:** Selection Mode
+- 🤏 **Pinch:** Resize objects / Change brush size
+- 👌 **OK Sign:** Duplicate selected object
+- ✊ **Closed Fist:** Delete selected object
+- 👍 **Thumb Up:** Save to Cloud
+- 👎 **Thumb Down:** Undo
+- 🖖 **Three Fingers:** Color Picker mode
+- 🤘 **Rock Sign:** AI Enhance
+- 🤟 **Love Sign:** Export PNG
+- ⬅️ **Swipe Left:** Undo
+- ➡️ **Swipe Right:** Redo
+- ⬆️ **Swipe Up:** Open AI Studio
+- ⬇️ **Swipe Down:** Clear Canvas
 
 ## Drawing
-- **Tool**: Select the Brush tool from the toolbar (or press `Ctrl+K` and type "Brush").
-- **Gesture**: Point your **Index finger** up, keeping other fingers closed. Move your hand to draw.
+Raise your **Index finger ☝️** and move your hand to draw naturally on the canvas. To erase, select the Eraser tool from the bottom toolbar and repeat the gesture.
 
-## Brushes
-Open the Brush Studio (🖌️ icon) to select from 12+ procedural brushes including Pencil, Ink, Neon, and Watercolor.
-Brushes react to your **Velocity**—moving your hand faster generates thinner, lighter strokes, while moving slower generates thicker, heavier strokes.
+## Brush Studio
+Click the Brush icon in the bottom toolbar to open the Brush Studio. Choose from 12 procedural brushes including Pencil, Ink, Neon, and Watercolor. Brushes react to your drawing velocity.
 
-## Layers
-Open the Layer Panel to manage your composition.
-- **Create**: Add new layers to separate line art, colors, and backgrounds.
-- **Toggle Visibility**: Hide layers you aren't working on.
-- **Lock**: Lock a layer to prevent accidental edits.
-- **Opacity**: Adjust the transparency of individual layers.
-- **Order**: Drag and drop layers to change their z-index.
+## Layer Studio
+The Studio Sidebar on the right defaults to the Layer Studio. Layers help you organize your artwork. You can Add, Rename, Hide, Lock, Duplicate, Delete, Reorder, and change the Opacity of layers.
 
-## Selection
-- **Tool**: Select the Selection tool from the toolbar.
-- **Gesture**: Make a **Peace sign (✌️)** to enter selection mode, then pinch to grab and move objects.
+## Shape Tools
+Create precise geometric shapes (Rectangle, Circle, Triangle, Star, Line, Arrow) using the Shape Toolbar. Check the "Smart Shapes" box to automatically convert your rough freehand sketches into perfect vectors.
 
-## Shapes & Smart Shapes
-- **Toolbar**: Select a primitive shape (Rectangle, Circle, Arrow) from the Shape Toolbar to stamp shapes onto the canvas.
-- **Smart Recognition**: Freehand draw a rough circle or box and watch FingerFlow instantly snap it into a perfect geometric vector.
+## Selection Tools
+Make a **Peace sign (✌️)** to enter Selection Mode (or click the cursor icon in the toolbar).
+- **Move:** Point with your Index finger and drag the object.
+- **Resize:** Pinch your fingers together or apart.
+- **Rotate:** Select the Rotate mode from the contextual Selection Toolbar.
+- **Duplicate:** Hold the OK sign (👌).
+- **Delete:** Hold a Closed Fist (✊).
 
 ## Infinite Canvas
-Never run out of space.
-- **Pan**: Hold up an **Open Palm (🖐️)** and drag to pan the camera across the world.
-- **Zoom**: Pinch your fingers together to zoom in and out, or use `Ctrl + Scroll`.
-- **Minimap**: Use the minimap in the bottom right to quickly navigate massive compositions.
+Your workspace is not limited to the screen. 
+- **Pan:** Hold up an **Open Palm (🖐️)** and drag to move around the canvas.
+- **Minimap:** Use the minimap in the bottom right to quickly navigate massive compositions.
 
-## AI Features
-Open the AI Sidebar to use Gemini Pro Vision.
-- **Analyze**: Ask the AI to critique your sketch or suggest color palettes.
-- **Convert**: Convert rough wireframes into structured UI code.
+## AI Studio
+Open the AI Studio tab in the right sidebar to work with your artwork using Gemini AI.
+- **Enhance:** Ask the AI to critique your sketch or suggest improvements.
+- **Analyze:** Extract color palettes and visual metadata.
+- **OCR:** Extract text directly from your handwritten notes.
+- **Shapes:** Let AI refine complex drawings.
 
-## Cloud Save
-- **Auto-Save**: The engine quietly saves your progress every 30 seconds to the cloud.
-- **Manual Save**: Give a **Thumbs Up (👍)** to trigger an instant cloud save.
+## Replay Engine
+Click the `▶️` button on the top left to watch a stroke-by-stroke timelapse replay of your current drawing session.
 
-## Replay
-Click the `▶️` button on the top left to watch a stroke-by-stroke timelapse of your current drawing session.
+## Export Studio
+Click the Download icon in the toolbar. You can export your canvas as PNG, JPEG, SVG, PDF, JSON, or native FFStudio project formats.
 
-## Export
-Click the Download icon or use the Command Palette (`Ctrl+K` -> "Export") to open the Export Studio.
-Supports: PNG, JPEG, SVG, PDF, JSON, and native `.ffstudio`.
+## Keyboard Shortcuts
+Click the `⌨️` icon in the top left to view shortcuts.
+- `Ctrl+Z` / `Ctrl+Shift+Z`: Undo / Redo
+- `Ctrl+S`: Cloud Save
+- `B` / `E`: Brush / Eraser tools
+- `C`: Clear Canvas
 
-## Preferences & Developer Mode
-Click the `⚙️` icon to open Preferences. Here you can enable **Developer Mode**, which overlays a Debug Panel showing real-time FPS, frame time, memory usage, and engine tracking data.
+## Preferences
+Click the `⚙️` icon in the top left to open Preferences. You can toggle **Developer Mode** here, which displays an advanced Debug Panel for tracking frame times, confidence scores, and gesture hysteresis data.
 
 ## Troubleshooting
-- **Hand not tracking?** Ensure good lighting and remove distracting background objects.
-- **Strokes lagging?** Disable Developer Mode and ensure your browser supports hardware acceleration.
+- **Camera is not available:** Ensure your browser has camera permissions enabled and no other application is using the webcam.
+- **Gestures are not detected / Poor Tracking:** Move to a brighter room and ensure the background contrasts with your hand.
+- **Gestures take time to switch:** FingerFlow intentionally requires holding a gesture for 2-4 frames to prevent accidental flickering. Hold your pose steadily.
+- **Canvas is blank on load:** Make sure you've selected a drawing from the Dashboard, or start drawing to create a new one.
+- **Firebase authentication error:** Clear your browser cache and cookies, or try logging in with a different Google account.
+- **AI Studio is unavailable:** Ensure your environment variables contain a valid Google Gemini API key.
+- **Export does not work:** Allow popups/downloads in your browser settings for FingerFlow Studio.
 
-## FAQ
-**Q: Does FingerFlow work on mobile?**
-A: FingerFlow is currently optimized for desktop web browsers with a webcam. Mobile support is on our Roadmap!
+## Frequently Asked Questions
+**Q: Can I use two hands?**
+A: FingerFlow Studio supports multi-hand detection under the hood, but primary drawing gestures rely on a single dominant hand.
