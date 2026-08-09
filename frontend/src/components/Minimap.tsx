@@ -8,6 +8,7 @@ interface MinimapProps {
 
 export const Minimap: React.FC<MinimapProps> = ({ engine }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasObjects, setHasObjects] = useState(false);
   
   useEffect(() => {
     const updateMinimap = () => {
@@ -29,7 +30,11 @@ export const Minimap: React.FC<MinimapProps> = ({ engine }) => {
       const canvas = (engine as any).canvas as fabric.Canvas;
       
       const objects = canvas.getObjects();
-      if (objects.length === 0) return;
+      if (objects.length === 0) {
+        setHasObjects(false);
+        return;
+      }
+      setHasObjects(true);
 
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       objects.forEach(obj => {
@@ -100,19 +105,39 @@ export const Minimap: React.FC<MinimapProps> = ({ engine }) => {
 
   return (
     <div style={{
-      position: 'absolute',
-      bottom: '24px',
-      left: '24px',
-      width: '150px',
-      height: '100px',
-      backgroundColor: '#1f2937',
-      borderRadius: '8px',
-      border: '1px solid #374151',
+      position: 'fixed',
+      bottom: '100px',
+      left: '16px',
+      width: '180px',
+      height: '120px',
+      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+      borderRadius: '12px',
+      border: '1px solid rgba(139, 92, 246, 0.3)',
       overflow: 'hidden',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-      zIndex: 50
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+      zIndex: 50,
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
     }}>
-      <canvas ref={canvasRef} width={150} height={100} style={{ width: '100%', height: '100%', cursor: 'pointer' }} />
+      {!hasObjects && (
+        <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+          <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '4px' }}>Canvas Overview</div>
+          <div>No content yet</div>
+        </div>
+      )}
+      <canvas 
+        ref={canvasRef} 
+        width={180} 
+        height={120} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          cursor: 'pointer',
+          display: hasObjects ? 'block' : 'none'
+        }} 
+      />
     </div>
   );
 };
