@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Hand, Edit3, Eraser, Pause, Maximize2, Cpu, Zap, HandMetal, CheckCircle } from 'lucide-react';
 import { GestureType, FingerState } from '../services/gestureClassifier';
+import { useWorkspace } from '../workspace/WorkspaceContext';
 
 interface StatusHUDProps {
   fps: number;
@@ -33,24 +34,19 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
   candidateGestures,
   cooldownActive,
 }) => {
+  const { currentMode } = useWorkspace();
+
   const getGestureBadge = () => {
     if (!isHandDetected) {
       return { text: 'Show your hand to begin', color: '#94a3b8', icon: <Hand size={14} /> };
     }
-    if (gesture === 'PAUSE' || gesture === 'HOME_DASHBOARD') {
-      return { text: 'Open Palm \u2192 Pan canvas', color: '#f59e0b', icon: <Hand size={14} /> };
+    
+    if (currentMode) {
+      const msg = currentMode.getStatusMessage(gesture, tool);
+      return { text: msg.text, color: msg.color, icon: msg.icon || <Activity size={14} /> };
     }
-    if (gesture === 'PINCH') {
-      return { text: 'Resize', color: '#c084fc', icon: <Maximize2 size={14} /> };
-    }
-    if (gesture === 'SELECTION_MODE') {
-      return { text: 'Peace \u2192 Select', color: '#6366f1', icon: <Hand size={14} /> };
-    }
-    if (gesture === 'DRAW') {
-      return tool === 'eraser'
-        ? { text: 'Index \u2192 Erase', color: '#ec4899', icon: <Eraser size={14} /> }
-        : { text: 'Index \u2192 Draw', color: '#10b981', icon: <Edit3 size={14} /> };
-    }
+
+    // Fallback
     return { text: 'Tracking...', color: '#6366f1', icon: <Activity size={14} /> };
   };
 

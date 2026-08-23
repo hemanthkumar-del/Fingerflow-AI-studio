@@ -34,6 +34,9 @@ import { CanvasManager } from '../engine/CanvasManager';
 import { AutoSaveManager } from '../engine/AutoSaveManager';
 import { ReplayEngine } from '../engine/ReplayEngine';
 
+import { WorkspaceProvider } from '../workspace/WorkspaceContext';
+import { ModeSwitcher } from '../workspace/ModeSwitcher';
+
 interface AirCanvasProps {
   initialDrawing?: DrawingRecord | null;
   onOpenMyDrawings?: () => void;
@@ -510,8 +513,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#090d16' }}>
-      {/* Hidden/Background Video Element for MediaPipe Processing */}
+    <WorkspaceProvider engine={engineRef.current}>
+      <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#090d16' }}>
+        <ModeSwitcher />
+        {/* Hidden/Background Video Element for MediaPipe Processing */}
       <video
         ref={videoRef}
         style={{
@@ -711,6 +716,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       </button>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
+      </div>
+    </WorkspaceProvider>
   );
 };
