@@ -36,6 +36,9 @@ import { ReplayEngine } from '../engine/ReplayEngine';
 
 import { WorkspaceProvider } from '../workspace/WorkspaceContext';
 import { ModeSwitcher } from '../workspace/ModeSwitcher';
+import { currentModeRef } from '../workspace/currentModeStore';
+import { writingEngineStore } from '../workspace/writingEngineStore';
+import { WritingUI } from '../workspace/WritingUI';
 
 interface AirCanvasProps {
   initialDrawing?: DrawingRecord | null;
@@ -349,6 +352,63 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         // Index tip position in canvas coordinates
         const indexX = primaryLandmarks[8].x * w;
         const indexY = primaryLandmarks[8].y * h;
+        const palmX = primaryLandmarks[9].x * w;
+        const palmY = primaryLandmarks[9].y * h;
+
+        // ---- WRITING MODE INTERCEPT ----
+        if (currentModeRef.current === 'writing') {
+          const wEngine = writingEngineStore.current;
+          if (wEngine) {
+            if (gestureResult.gesture === 'DRAW') {
+              wEngine.stopErasing();
+              if (wEngine.indexStableFrames < 3) {
+                wEngine.indexStableFrames++;
+              } else {
+                if (!wEngine.isWriting) {
+                  wEngine.beginStroke(indexX, indexY, now);
+                } else {
+                  wEngine.updateStroke(indexX, indexY, now);
+                }
+              }
+              
+              ctx.beginPath();
+              ctx.arc(indexX, indexY, wEngine.inkSize / 2 + 2, 0, 2 * Math.PI);
+              ctx.fillStyle = wEngine.inkColor;
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1;
+              ctx.fill();
+              ctx.stroke();
+            } else if (gestureResult.gesture === 'PAUSE' || gestureResult.gesture === 'HOME_DASHBOARD') {
+              wEngine.indexStableFrames = 0;
+              if (wEngine.isWriting) {
+                wEngine.endStroke();
+              }
+              wEngine.erase(palmX, palmY);
+              
+              ctx.beginPath();
+              ctx.arc(palmX, palmY, wEngine.eraserRadius, 0, 2 * Math.PI);
+              ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+              ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+              ctx.lineWidth = 2;
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              wEngine.indexStableFrames = 0;
+              if (wEngine.isWriting) {
+                wEngine.endStroke();
+              }
+              wEngine.stopErasing();
+              
+              // Hover state
+              ctx.beginPath();
+              ctx.arc(indexX, indexY, 4, 0, 2 * Math.PI);
+              ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+              ctx.fill();
+            }
+          }
+          return; // Skip Canvas Mode Logic
+        }
+        // ---- END WRITING MODE INTERCEPT ----
 
         // Perform Gesture Logic using CanvasManager
         if (gestureResult.gesture === 'SELECTION_MODE') {
@@ -516,6 +576,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     <WorkspaceProvider engine={engineRef.current}>
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#090d16' }}>
         <ModeSwitcher />
+        <WritingUI />
         {/* Hidden/Background Video Element for MediaPipe Processing */}
       <video
         ref={videoRef}

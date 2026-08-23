@@ -62,6 +62,13 @@ The Studio Sidebar on the right defaults to the Layer Studio. Layers help you or
 ## Shape Tools
 Create precise geometric shapes (Rectangle, Circle, Triangle, Star, Line, Arrow) using the Shape Toolbar. Check the "Smart Shapes" box to automatically convert your rough freehand sketches into perfect vectors.
 
+## Writing Mode (New!)
+Switch to **Writing Mode** from the Workspace Switcher in the top center to enter a distraction-free handwriting environment.
+- **Index Finger (☝️):** Write accurately with heavy jitter-smoothing.
+- **Open Palm (🖐️):** Erase notes naturally by hovering your palm over them.
+- When finished, click **Finish Writing** to either save your notes to the main canvas or discard them safely.
+
+
 ## Selection Tools
 Make a **Peace sign (✌️)** to enter Selection Mode (or click the cursor icon in the toolbar).
 - **Move:** Point with your Index finger and drag the object.

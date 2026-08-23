@@ -3,6 +3,7 @@ import { WorkspaceMode } from './WorkspaceMode';
 import { WorkspaceRegistry } from './WorkspaceRegistry';
 import { CanvasManager } from '../engine/CanvasManager';
 import { WorkspaceManager } from './WorkspaceManager';
+import { currentModeRef } from './currentModeStore';
 
 // Import modes so they register themselves
 import './modes/CanvasWorkspace';
@@ -28,6 +29,7 @@ export const WorkspaceProvider: React.FC<{ engine: CanvasManager | null, childre
   }, [engine]);
 
   useEffect(() => {
+    currentModeRef.current = currentModeId;
     if (workspaceManager && engine) {
       workspaceManager.activateMode(currentModeId);
     }
@@ -36,6 +38,7 @@ export const WorkspaceProvider: React.FC<{ engine: CanvasManager | null, childre
   const setMode = (id: string) => {
     if (WorkspaceRegistry.get(id)) {
       setCurrentModeId(id);
+      currentModeRef.current = id;
     }
   };
 

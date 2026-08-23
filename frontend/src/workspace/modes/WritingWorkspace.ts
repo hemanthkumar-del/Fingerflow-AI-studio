@@ -3,39 +3,44 @@ import { WorkspaceMode } from '../WorkspaceMode';
 import { CanvasManager } from '../../engine/CanvasManager';
 import { WorkspaceRegistry } from '../WorkspaceRegistry';
 import { GestureProfile } from '../GestureProfile';
+import { writingGestureProfile } from './writing/WritingGestureProfile';
+import { WritingEngine } from './writing/WritingEngine';
+import { writingEngineStore } from '../writingEngineStore';
 
 export class WritingWorkspaceImpl implements WorkspaceMode {
   id = 'writing';
   name = 'Writing Mode';
   icon = '✍️';
-  description = 'Handwriting recognition and document creation (Coming Soon).';
+  description = 'High accuracy handwriting and note taking.';
+
+  private writingEngine: WritingEngine | null = null;
 
   activate(engine: CanvasManager): void {
-    // Placeholder for Phase 10.1
-    // We do NOT modify the existing canvas state to preserve data.
+    this.writingEngine = new WritingEngine(engine);
+    writingEngineStore.current = this.writingEngine;
   }
 
   deactivate(engine: CanvasManager): void {
-    // Placeholder for Phase 10.1
+    if (this.writingEngine) {
+      if (this.writingEngine.isWriting) {
+        this.writingEngine.endStroke();
+      }
+      this.writingEngine.dispose();
+      this.writingEngine = null;
+      writingEngineStore.current = null;
+    }
   }
 
   getGestureProfile(): GestureProfile {
-    return {
-      id: 'writing',
-      name: 'Writing Mode',
-      mappings: [
-        { gesture: 'DRAW', action: 'Write', description: 'Write text' },
-        { gesture: 'PAUSE', action: 'Erase', description: 'Erase text' }
-      ]
-    };
+    return writingGestureProfile;
   }
 
   getStatusMessage(gesture: string, tool: string) {
     if (gesture === 'DRAW') {
-      return { text: 'Index \u2192 Write (Placeholder)', color: '#10b981', icon: null };
+      return { text: 'Index \u2192 Write', color: '#10b981', icon: null };
     }
     if (gesture === 'PAUSE' || gesture === 'HOME_DASHBOARD') {
-      return { text: 'Open Palm \u2192 Erase (Placeholder)', color: '#f59e0b', icon: null };
+      return { text: 'Open Palm \u2192 Erase', color: '#f59e0b', icon: null };
     }
     return { text: 'Writing Mode Active', color: '#6366f1', icon: null };
   }
