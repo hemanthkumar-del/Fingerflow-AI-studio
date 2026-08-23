@@ -1,6 +1,9 @@
 import { CanvasManager } from '../../../engine/CanvasManager';
 import { WritingStabilizer } from './WritingStabilizer';
 import { WritingSessionManager } from './WritingSessionManager';
+import { StrokeSession } from '../../../recognition/StrokeSession';
+import type { RecognitionResult } from '../../../recognition/RecognitionResult';
+import type { Stroke } from '../../../recognition/Stroke';
 import { fabric } from 'fabric';
 import { Command } from '../../../engine/Command';
 
@@ -18,10 +21,14 @@ export class EraseObjectsCommand implements Command {
   }
 }
 
+/** Points accumulated during the current stroke (for recognition) */
+type RawPoint = { x: number; y: number; t?: number };
+
 export class WritingEngine {
   private engine: CanvasManager;
   private stabilizer: WritingStabilizer;
   private sessionManager: WritingSessionManager;
+  private strokeSession: StrokeSession;
   
   public isWriting = false;
   public isErasing = false;
@@ -31,10 +38,23 @@ export class WritingEngine {
   public inkSize: number = 4;
   public eraserRadius: number = 60;
   
+  // Raw points collected during the current stroke (for recognition pipeline)
+  private currentStrokeRawPoints: RawPoint[] = [];
+  
+  // Recognition result callback (set by WritingUI to show overlay)
+  public onRecognition: ((result: RecognitionResult, rawStrokes: Stroke[]) => void) | null = null;
+  
   constructor(engine: CanvasManager) {
     this.engine = engine;
     this.stabilizer = new WritingStabilizer();
     this.sessionManager = new WritingSessionManager(engine);
+    
+    // Initialize recognition pipeline
+    this.strokeSession = new StrokeSession((result, rawStrokes) => {
+      if (this.onRecognition) {
+        this.onRecognition(result, rawStrokes);
+      }
+    });
     
     // Intercept object additions to tag them
     const canvas = this.engine.getCanvas();
@@ -43,6 +63,8 @@ export class WritingEngine {
   }
   
   public dispose() {
+    this.strokeSession.flush();
+    this.strokeSession.reset();
     const canvas = this.engine.getCanvas();
     canvas.off('object:added', this.handleObjectAdded);
     canvas.off('object:removed', this.handleObjectRemoved);
@@ -64,10 +86,23 @@ export class WritingEngine {
   public getSessionManager() {
     return this.sessionManager;
   }
+  
+  public getStrokeSession() {
+    return this.strokeSession;
+  }
+
+  public setSmartRecognition(enabled: boolean) {
+    this.strokeSession.setRecognitionEnabled(enabled);
+  }
+  
+  public isSmartRecognitionEnabled(): boolean {
+    return this.strokeSession.isRecognitionEnabled();
+  }
 
   public beginStroke(x: number, y: number, timestamp: number) {
     this.isWriting = true;
     this.stabilizer.reset();
+    this.currentStrokeRawPoints = [];
     const pt = this.stabilizer.filter(x, y, timestamp);
     
     // Temporarily set brush color and size on engine
@@ -79,6 +114,7 @@ export class WritingEngine {
     
     this.engine.beginStroke();
     this.engine.updateStroke(pt.x, pt.y, timestamp);
+    this.currentStrokeRawPoints.push({ x: pt.x, y: pt.y, t: timestamp });
     
     this.engine.brush.setColor(oldColor);
     this.engine.brush.setSize(oldSize);
@@ -96,6 +132,7 @@ export class WritingEngine {
     this.engine.brush.setSize(this.inkSize);
 
     this.engine.updateStroke(pt.x, pt.y, timestamp);
+    this.currentStrokeRawPoints.push({ x: pt.x, y: pt.y, t: timestamp });
 
     this.engine.brush.setColor(oldColor);
     this.engine.brush.setSize(oldSize);
@@ -105,6 +142,12 @@ export class WritingEngine {
     if (!this.isWriting) return;
     this.engine.endStroke();
     this.isWriting = false;
+    
+    // Feed completed stroke into recognition pipeline
+    if (this.currentStrokeRawPoints.length >= 2) {
+      this.strokeSession.onStrokeComplete([...this.currentStrokeRawPoints]);
+    }
+    this.currentStrokeRawPoints = [];
   }
 
   public erase(screenX: number, screenY: number) {
@@ -128,7 +171,6 @@ export class WritingEngine {
       const worldEraserRadius = this.eraserRadius / this.engine.viewport.getState().zoom;
       
       if (dist < worldEraserRadius + Math.max(bound.width, bound.height) / 2) {
-          // If close, erase
           objectsToErase.push(obj);
       }
     });
@@ -143,4 +185,3 @@ export class WritingEngine {
     this.isErasing = false;
   }
 }
-
