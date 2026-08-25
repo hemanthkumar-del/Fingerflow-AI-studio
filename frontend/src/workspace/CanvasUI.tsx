@@ -5,6 +5,9 @@ import { SelectionToolbar } from '../components/SelectionToolbar';
 import { FloatingToolbar } from '../components/FloatingToolbar';
 import { CanvasManager } from '../engine/CanvasManager';
 import { Layer } from '../engine/LayerManager';
+import { ShapeToolbar } from '../components/ShapeToolbar';
+import { BrushStudio } from '../components/BrushStudio';
+import { Minimap } from '../components/Minimap';
 
 interface CanvasUIProps {
   engine: CanvasManager;
@@ -31,6 +34,8 @@ interface CanvasUIProps {
   isCameraActive: boolean;
   onToggleCamera: () => void;
   onOpenBrushStudio: () => void;
+  showBrushStudio: boolean;
+  setShowBrushStudio: (show: boolean) => void;
 }
 
 export const CanvasUI: React.FC<CanvasUIProps> = (props) => {
@@ -49,6 +54,13 @@ export const CanvasUI: React.FC<CanvasUIProps> = (props) => {
         getCanvasImage={props.getCanvasImage}
       />
       <SelectionToolbar engine={props.engine} />
+      <ShapeToolbar engine={props.engine} />
+      <BrushStudio
+        engine={props.engine}
+        isOpen={props.showBrushStudio}
+        onClose={() => props.setShowBrushStudio(false)}
+      />
+      <Minimap engine={props.engine} />
       <FloatingToolbar
         tool={props.tool}
         setTool={props.setTool}

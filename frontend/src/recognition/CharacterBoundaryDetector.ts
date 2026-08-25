@@ -47,10 +47,19 @@ export class CharacterBoundaryDetector {
       };
     } else {
       const timeSinceLast = now - this.currentCandidate.lastStrokeEndTime;
-      const spatialGap = this.computeSpatialGap(this.currentCandidate, stroke);
       const bb = computeBoundingBox(this.currentCandidate.strokes.flatMap(s => s.points));
-      const charWidth = Math.max(bb.width, 20);
-      const isSpatiallySeparated = spatialGap > charWidth * SPATIAL_THRESHOLD_RATIO;
+      
+      // Use the max dimension of the bounding box to estimate the character's scale
+      const charScale = Math.max(bb.width, bb.height, 40);
+      
+      // Distance from the new stroke's start to the bounding box center
+      const dxCenter = stroke.startPoint.x - bb.cx;
+      const dyCenter = stroke.startPoint.y - bb.cy;
+      const distToCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter);
+
+      // Check if the new stroke is spatially separated from the current character cluster
+      // Allow strokes that are within ~1.2x of the character's scale from the center
+      const isSpatiallySeparated = distToCenter > charScale * 1.2;
 
       // Force completion if: time gap too large, spatial gap too large, or too many strokes
       if (

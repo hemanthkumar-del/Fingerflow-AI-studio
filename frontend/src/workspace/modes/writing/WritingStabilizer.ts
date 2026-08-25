@@ -60,14 +60,29 @@ class OneEuroFilter {
 export class WritingStabilizer {
   private filterX: OneEuroFilter;
   private filterY: OneEuroFilter;
+  private lastPt: Point | null = null;
+  private deadzone: number = 1.0; // Ignore sub-pixel jitter
 
   constructor() {
-    // 60Hz assumed frequency, mincutoff=1.5 (more smoothing at slow speeds), beta=0.1 (responsive at fast speeds)
-    this.filterX = new OneEuroFilter(60, 1.5, 0.1, 1.0);
-    this.filterY = new OneEuroFilter(60, 1.5, 0.1, 1.0);
+    // 60Hz assumed freq.
+    // mincutoff = 0.5 (heavy smoothing when moving very slowly)
+    // beta = 0.8 (quick reduction in smoothing when moving fast)
+    this.filterX = new OneEuroFilter(60, 0.5, 0.8, 1.0);
+    this.filterY = new OneEuroFilter(60, 0.5, 0.8, 1.0);
   }
 
   public filter(rawX: number, rawY: number, timestamp: number = -1): Point {
+    // Apply small deadzone to prevent jitter when finger is stationary
+    if (this.lastPt) {
+      const dx = rawX - this.lastPt.x;
+      const dy = rawY - this.lastPt.y;
+      if (Math.sqrt(dx * dx + dy * dy) < this.deadzone) {
+        rawX = this.lastPt.x;
+        rawY = this.lastPt.y;
+      }
+    }
+    this.lastPt = { x: rawX, y: rawY };
+
     const smoothX = this.filterX.filter(rawX, timestamp);
     const smoothY = this.filterY.filter(rawY, timestamp);
     return { x: smoothX, y: smoothY };
@@ -76,5 +91,6 @@ export class WritingStabilizer {
   public reset(): void {
     this.filterX.reset();
     this.filterY.reset();
+    this.lastPt = null;
   }
 }

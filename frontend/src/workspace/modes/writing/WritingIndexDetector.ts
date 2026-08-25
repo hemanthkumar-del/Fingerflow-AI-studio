@@ -186,39 +186,31 @@ export class WritingIndexDetector {
    * is in a "pointing" posture.
    *
    * Uses fingertip-to-MCP distances relative to palm size.
-   * Requires at least 2 non-index fingers to be curled.
    */
   private detectIndexExtended(lm: Landmark[]): boolean {
     // MediaPipe hand landmark indices:
     // 0=WRIST, 1-4=THUMB, 5-8=INDEX, 9-12=MIDDLE, 13-16=RING, 17-20=PINKY
-    // For each finger: MCP=base, PIP=mid, DIP=near-tip, TIP=tip
-    //   Index:  MCP=5, PIP=6, DIP=7, TIP=8
-    //   Middle: MCP=9, PIP=10, DIP=11, TIP=12
-    //   Ring:   MCP=13, PIP=14, DIP=15, TIP=16
-    //   Pinky:  MCP=17, PIP=18, DIP=19, TIP=20
-
     const palmSize = this.dist3(lm[0], lm[9]); // Wrist to middle MCP
     if (palmSize < 1e-6) return false;
 
-    // Index finger: tip must be far from MCP and above PIP (finger pointing up/forward)
+    // Index finger: tip must be far from MCP
+    // Relaxed threshold to 0.55 to allow natural writing angles
     const indexExtension = this.dist3(lm[5], lm[8]) / palmSize;
-    const indexTipAbovePip = lm[8].y < lm[6].y; // Lower y = higher on screen
-
-    if (indexExtension < EXTENSION_THRESHOLD || !indexTipAbovePip) return false;
+    if (indexExtension < 0.55) return false;
 
     // Count curled fingers (middle, ring, pinky)
+    // A finger is considered curled if its tip is relatively close to its MCP
+    // compared to a fully extended finger.
     const nonIndexFingers = [
-      { mcp: 9, pip: 10, tip: 12 },   // middle
-      { mcp: 13, pip: 14, tip: 16 },  // ring
-      { mcp: 17, pip: 18, tip: 20 },  // pinky
+      { mcp: 9, tip: 12 },   // middle
+      { mcp: 13, tip: 16 },  // ring
+      { mcp: 17, tip: 20 },  // pinky
     ];
 
     let curledCount = 0;
     for (const f of nonIndexFingers) {
       const ext = this.dist3(lm[f.mcp], lm[f.tip]) / palmSize;
-      const tipAbovePip = lm[f.tip].y < lm[f.pip].y;
-      // A finger is "curled" if it is NOT extended
-      if (ext < EXTENSION_THRESHOLD || !tipAbovePip) {
+      if (ext < 0.65) {
         curledCount++;
       }
     }
@@ -228,35 +220,31 @@ export class WritingIndexDetector {
 
   /**
    * Detect whether the hand is an open palm (all fingers extended and spread).
-   * Used for the eraser gesture.
    */
   private detectOpenPalm(lm: Landmark[]): boolean {
     const palmSize = this.dist3(lm[0], lm[9]);
     if (palmSize < 1e-6) return false;
 
-    // All main fingers must be extended
     const fingers = [
-      { mcp: 5, pip: 6, tip: 8 },    // index
-      { mcp: 9, pip: 10, tip: 12 },  // middle
-      { mcp: 13, pip: 14, tip: 16 }, // ring
-      { mcp: 17, pip: 18, tip: 20 }, // pinky
+      { mcp: 5, tip: 8 },    // index
+      { mcp: 9, tip: 12 },   // middle
+      { mcp: 13, tip: 16 },  // ring
+      { mcp: 17, tip: 20 },  // pinky
     ];
 
     let extendedCount = 0;
     for (const f of fingers) {
       const ext = this.dist3(lm[f.mcp], lm[f.tip]) / palmSize;
-      const tipAbovePip = lm[f.tip].y < lm[f.pip].y;
-      if (ext >= EXTENSION_THRESHOLD && tipAbovePip) extendedCount++;
+      if (ext >= 0.55) extendedCount++;
     }
 
-    // All 4 fingers must be extended for an open palm
     return extendedCount >= 4;
   }
 
   private dist3(a: Landmark, b: Landmark): number {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
-    const dz = (a.z - b.z) * 0.5; // z is less reliable, weight it less
+    const dz = (a.z - b.z) * 0.4; // z is less reliable, reduce weight further
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 }

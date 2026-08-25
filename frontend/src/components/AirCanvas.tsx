@@ -596,7 +596,19 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     <WorkspaceProvider engine={engineRef.current}>
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#090d16' }}>
         <ModeSwitcher />
-        <WritingUI />
+        <WritingUI 
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+          onExport={handleExport}
+          onSaveCloud={handleSaveCloud}
+          onOpenLibrary={onOpenMyDrawings || (() => {})}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          isSavingCloud={isSavingCloud}
+          isCameraActive={isCameraActive}
+          onToggleCamera={() => setIsCameraActive((prev) => !prev)}
+        />
         {/* Hidden/Background Video Element for MediaPipe Processing */}
       <video
         ref={videoRef}
@@ -645,13 +657,6 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
       {engineRef.current && (
         <>
-          <BrushStudio
-            engine={engineRef.current}
-            isOpen={showBrushStudio}
-            onClose={() => setShowBrushStudio(false)}
-          />
-          <ShapeToolbar engine={engineRef.current} />
-          <Minimap engine={engineRef.current} />
           <DebugPanel engine={engineRef.current} />
           
           <ExportModal 
@@ -715,6 +720,8 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           isCameraActive={isCameraActive}
           onToggleCamera={() => setIsCameraActive((prev) => !prev)}
           onOpenBrushStudio={() => setShowBrushStudio(true)}
+          showBrushStudio={showBrushStudio}
+          setShowBrushStudio={setShowBrushStudio}
         />
       )}
 

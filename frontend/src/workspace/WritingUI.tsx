@@ -3,6 +3,7 @@ import { useWorkspace } from './WorkspaceContext';
 import { writingEngineStore } from './writingEngineStore';
 import { WritingStudioPanel } from './modes/writing/WritingStudioPanel';
 import { WritingExitDialog } from './modes/writing/WritingExitDialog';
+import { WritingBottomBar } from './modes/writing/WritingBottomBar';
 import { RecognitionOverlay } from '../components/recognition/RecognitionOverlay';
 import type { RecognitionResult } from '../recognition/RecognitionResult';
 import type { Stroke } from '../recognition/Stroke';
@@ -15,7 +16,21 @@ import type { Stroke } from '../recognition/Stroke';
  * at the top of the component. The early return for non-writing mode comes AFTER
  * all hooks have been called. This is required by React's Rules of Hooks.
  */
-export const WritingUI: React.FC = () => {
+interface WritingUIProps {
+  onUndo: () => void;
+  onRedo: () => void;
+  onClear: () => void;
+  onExport: () => void;
+  onSaveCloud: () => void;
+  onOpenLibrary: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  isSavingCloud: boolean;
+  isCameraActive: boolean;
+  onToggleCamera: () => void;
+}
+
+export const WritingUI: React.FC<WritingUIProps> = (props) => {
   // ── All hooks called unconditionally first ─────────────────────────────
   const { currentModeId, setMode } = useWorkspace();
   const [showExit, setShowExit] = useState(false);
@@ -98,6 +113,19 @@ export const WritingUI: React.FC = () => {
           onCancel={handleCancel}
         />
       )}
+      <WritingBottomBar
+        onUndo={props.onUndo}
+        onRedo={props.onRedo}
+        onClear={props.onClear}
+        onExport={props.onExport}
+        onSaveCloud={props.onSaveCloud}
+        onOpenLibrary={props.onOpenLibrary}
+        canUndo={props.canUndo}
+        canRedo={props.canRedo}
+        isSavingCloud={props.isSavingCloud}
+        isCameraActive={props.isCameraActive}
+        onToggleCamera={props.onToggleCamera}
+      />
     </>
   );
 };
