@@ -40,6 +40,7 @@ import { currentModeRef } from '../workspace/currentModeStore';
 import { writingEngineStore } from '../workspace/writingEngineStore';
 import { writingDetectorStore } from '../workspace/writingDetectorStore';
 import { WritingUI } from '../workspace/WritingUI';
+import { CanvasUI } from '../workspace/CanvasUI';
 
 interface AirCanvasProps {
   initialDrawing?: DrawingRecord | null;
@@ -690,26 +691,32 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         </>
       )}
 
-      <FloatingToolbar
-        tool={tool}
-        setTool={setTool}
-        brushColor={brushColor}
-        setBrushColor={setBrushColor}
-        brushSize={brushSize}
-        setBrushSize={setBrushSize}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onClear={handleClear}
-        onExport={handleExport}
-        onSaveCloud={handleSaveCloud}
-        onOpenMyDrawings={onOpenMyDrawings || (() => {})}
-        isSavingCloud={isSavingCloud}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        isCameraActive={isCameraActive}
-        onToggleCamera={() => setIsCameraActive((prev) => !prev)}
-        onOpenBrushStudio={() => setShowBrushStudio(true)}
-      />
+      {engineRef.current && (
+        <CanvasUI
+          engine={engineRef.current}
+          layers={layers}
+          activeLayerId={activeLayerId}
+          getCanvasImage={getCanvasImage}
+          tool={tool}
+          setTool={setTool}
+          brushColor={brushColor}
+          setBrushColor={setBrushColor}
+          brushSize={brushSize}
+          setBrushSize={setBrushSize}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+          onExport={handleExport}
+          onSaveCloud={handleSaveCloud}
+          onOpenMyDrawings={onOpenMyDrawings || (() => {})}
+          isSavingCloud={isSavingCloud}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          isCameraActive={isCameraActive}
+          onToggleCamera={() => setIsCameraActive((prev) => !prev)}
+          onOpenBrushStudio={() => setShowBrushStudio(true)}
+        />
+      )}
 
       <div style={{ position: 'fixed', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 100 }}>
         <button 
@@ -770,17 +777,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         />
       )}
 
-      {engineRef.current && (
-        <>
-          <StudioSidebar 
-            engine={engineRef.current}
-            layers={layers}
-            activeLayerId={activeLayerId}
-            getCanvasImage={getCanvasImage}
-          />
-          <SelectionToolbar engine={engineRef.current} />
-        </>
-      )}
+
 
       <button 
         onClick={() => setShowSettings(true)}

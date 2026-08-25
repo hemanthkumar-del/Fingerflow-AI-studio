@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWorkspace } from './WorkspaceContext';
 import { writingEngineStore } from './writingEngineStore';
-import { WritingToolbar } from './modes/writing/WritingToolbar';
+import { WritingStudioPanel } from './modes/writing/WritingStudioPanel';
 import { WritingExitDialog } from './modes/writing/WritingExitDialog';
 import { RecognitionOverlay } from '../components/recognition/RecognitionOverlay';
 import type { RecognitionResult } from '../recognition/RecognitionResult';
@@ -83,7 +83,7 @@ export const WritingUI: React.FC = () => {
 
   return (
     <>
-      <WritingToolbar engine={engine} onExit={handleExitClick} />
+      <WritingStudioPanel engine={engine} onExit={handleExitClick} />
 
       <RecognitionOverlay
         result={recognitionResult}
