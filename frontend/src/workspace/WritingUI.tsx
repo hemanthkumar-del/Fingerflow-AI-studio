@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useWorkspace } from './WorkspaceContext';
 import { writingEngineStore } from './writingEngineStore';
 import { WritingToolbar } from './modes/writing/WritingToolbar';
@@ -59,6 +59,16 @@ export const WritingUI: React.FC = () => {
   const handleDismissRecognition = useCallback(() => {
     setRecognitionResult(null);
   }, []);
+
+  // Reset internal state whenever the workspace mode leaves 'writing'.
+  // This guarantees that if the user enters Writing Mode again, showExit
+  // starts as false and no stale recognition result is shown.
+  useEffect(() => {
+    if (currentModeId !== 'writing') {
+      setShowExit(false);
+      setRecognitionResult(null);
+    }
+  }, [currentModeId]);
 
   // ── Early return AFTER all hooks ────────────────────────────────────────
   if (currentModeId !== 'writing') return null;

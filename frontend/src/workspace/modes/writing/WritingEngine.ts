@@ -32,7 +32,6 @@ export class WritingEngine {
   
   public isWriting = false;
   public isErasing = false;
-  public indexStableFrames = 0;
   
   public inkColor: string = '#000000';
   public inkSize: number = 4;

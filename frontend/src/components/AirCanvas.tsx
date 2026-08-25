@@ -38,6 +38,7 @@ import { WorkspaceProvider } from '../workspace/WorkspaceContext';
 import { ModeSwitcher } from '../workspace/ModeSwitcher';
 import { currentModeRef } from '../workspace/currentModeStore';
 import { writingEngineStore } from '../workspace/writingEngineStore';
+import { writingDetectorStore } from '../workspace/writingDetectorStore';
 import { WritingUI } from '../workspace/WritingUI';
 
 interface AirCanvasProps {
@@ -358,55 +359,69 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         // ---- WRITING MODE INTERCEPT ----
         if (currentModeRef.current === 'writing') {
           const wEngine = writingEngineStore.current;
-          if (wEngine) {
-            if (gestureResult.gesture === 'DRAW') {
-              wEngine.stopErasing();
-              if (wEngine.indexStableFrames < 3) {
-                wEngine.indexStableFrames++;
-              } else {
-                if (!wEngine.isWriting) {
-                  wEngine.beginStroke(indexX, indexY, now);
-                } else {
-                  wEngine.updateStroke(indexX, indexY, now);
-                }
+          const detector = writingDetectorStore.current;
+
+          if (wEngine && detector) {
+            // Use the dedicated geometric detector on raw landmarks.
+            // It has its own temporal hysteresis and tracking-loss tolerance,
+            // so it does NOT depend on the general GestureEngine's classification.
+            const writingState = detector.update(primaryLandmarks);
+
+            if (writingState === 'WRITE') {
+              // ── Index finger writing ──────────────────────────────────
+              if (wEngine.isErasing) {
+                wEngine.stopErasing();
               }
-              
+              if (!wEngine.isWriting) {
+                wEngine.beginStroke(indexX, indexY, now);
+              } else {
+                wEngine.updateStroke(indexX, indexY, now);
+              }
+
+              // Fingertip cursor
               ctx.beginPath();
-              ctx.arc(indexX, indexY, wEngine.inkSize / 2 + 2, 0, 2 * Math.PI);
+              ctx.arc(indexX, indexY, wEngine.inkSize / 2 + 3, 0, 2 * Math.PI);
               ctx.fillStyle = wEngine.inkColor;
-              ctx.strokeStyle = '#ffffff';
-              ctx.lineWidth = 1;
+              ctx.globalAlpha = 0.85;
+              ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+              ctx.lineWidth = 1.5;
               ctx.fill();
               ctx.stroke();
-            } else if (gestureResult.gesture === 'PAUSE' || gestureResult.gesture === 'HOME_DASHBOARD') {
-              wEngine.indexStableFrames = 0;
+              ctx.globalAlpha = 1.0;
+
+            } else if (writingState === 'ERASE') {
+              // ── Palm eraser ───────────────────────────────────────────
               if (wEngine.isWriting) {
                 wEngine.endStroke();
               }
               wEngine.erase(palmX, palmY);
-              
+
+              // Eraser circle indicator
               ctx.beginPath();
               ctx.arc(palmX, palmY, wEngine.eraserRadius, 0, 2 * Math.PI);
-              ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-              ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+              ctx.fillStyle = 'rgba(255, 50, 50, 0.15)';
+              ctx.strokeStyle = 'rgba(255, 80, 80, 0.9)';
               ctx.lineWidth = 2;
               ctx.fill();
               ctx.stroke();
+
             } else {
-              wEngine.indexStableFrames = 0;
+              // ── IDLE — neither writing nor erasing ───────────────────
               if (wEngine.isWriting) {
                 wEngine.endStroke();
               }
-              wEngine.stopErasing();
-              
-              // Hover state
+              if (wEngine.isErasing) {
+                wEngine.stopErasing();
+              }
+
+              // Subtle hand-presence indicator
               ctx.beginPath();
-              ctx.arc(indexX, indexY, 4, 0, 2 * Math.PI);
-              ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+              ctx.arc(indexX, indexY, 5, 0, 2 * Math.PI);
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
               ctx.fill();
             }
           }
-          return; // Skip Canvas Mode Logic
+          return; // Skip all Canvas Mode logic
         }
         // ---- END WRITING MODE INTERCEPT ----
 
@@ -546,6 +561,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         setPrimaryHand('None');
         engineRef.current?.endStroke();
         engineRef.current?.beginStroke();
+        // Notify the writing detector that tracking was lost this frame
+        if (currentModeRef.current === 'writing') {
+          writingDetectorStore.current?.update(null);
+        }
       }
     });
 
