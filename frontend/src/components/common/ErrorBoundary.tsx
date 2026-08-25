@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <Hand size={36} color="#ffffff" />
             </div>
 
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>FingerFlow Studio Studio</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>FingerFlow Studio</h2>
 
             <div
               style={{

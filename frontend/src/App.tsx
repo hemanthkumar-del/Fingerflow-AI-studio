@@ -45,7 +45,7 @@ const PageLoader: React.FC = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#818cf8' }}>
       <Loader2 size={22} className="animate-spin" />
       <span style={{ fontWeight: 600, fontSize: '0.95rem', letterSpacing: '0.02em' }}>
-        Loading FingerFlow Studio Studio...
+        Loading FingerFlow Studio...
       </span>
     </div>
   </div>

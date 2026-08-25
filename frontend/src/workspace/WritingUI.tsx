@@ -7,70 +7,85 @@ import { RecognitionOverlay } from '../components/recognition/RecognitionOverlay
 import type { RecognitionResult } from '../recognition/RecognitionResult';
 import type { Stroke } from '../recognition/Stroke';
 
+/**
+ * WritingUI — renders all Writing Mode UI overlays.
+ *
+ * RULES OF HOOKS COMPLIANCE:
+ * All hooks (useState, useCallback, useWorkspace) are called unconditionally
+ * at the top of the component. The early return for non-writing mode comes AFTER
+ * all hooks have been called. This is required by React's Rules of Hooks.
+ */
 export const WritingUI: React.FC = () => {
+  // ── All hooks called unconditionally first ─────────────────────────────
   const { currentModeId, setMode } = useWorkspace();
   const [showExit, setShowExit] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
-  
-  if (currentModeId !== 'writing') return null;
-  
-  const engine = writingEngineStore.current;
-  if (!engine) return null;
-  
-  // Wire up the recognition callback once
-  engine.onRecognition = (result: RecognitionResult, rawStrokes: Stroke[]) => {
-    setRecognitionResult(result);
-  };
-  
-  const handleExitClick = () => {
-    engine.getStrokeSession().flush();
+
+  const handleExitClick = useCallback(() => {
+    const engine = writingEngineStore.current;
+    if (engine) engine.getStrokeSession().flush();
     setShowExit(true);
-  };
-  
-  const handleSave = () => {
-    engine.getSessionManager().commitSession();
-    engine.getStrokeSession().reset();
+  }, []);
+
+  const handleSave = useCallback(() => {
+    const engine = writingEngineStore.current;
+    if (engine) {
+      engine.getSessionManager().commitSession();
+      engine.getStrokeSession().reset();
+    }
     setShowExit(false);
     setMode('canvas');
-  };
-  
-  const handleDiscard = () => {
-    engine.getSessionManager().discardSession();
-    engine.getStrokeSession().reset();
+  }, [setMode]);
+
+  const handleDiscard = useCallback(() => {
+    const engine = writingEngineStore.current;
+    if (engine) {
+      engine.getSessionManager().discardSession();
+      engine.getStrokeSession().reset();
+    }
     setShowExit(false);
     setMode('canvas');
-  };
-  
-  const handleCancel = () => {
+  }, [setMode]);
+
+  const handleCancel = useCallback(() => {
     setShowExit(false);
-  };
+  }, []);
 
   const handleAcceptRecognition = useCallback((character: string) => {
-    // For Phase 10.2: simply display accepted character in console and dismiss
-    // Phase 10.3+ will place a Fabric text object at the stroke bounding box position
     console.info(`[Smart Recognition] Accepted: "${character}"`);
     setRecognitionResult(null);
   }, []);
-  
+
   const handleDismissRecognition = useCallback(() => {
     setRecognitionResult(null);
   }, []);
 
+  // ── Early return AFTER all hooks ────────────────────────────────────────
+  if (currentModeId !== 'writing') return null;
+
+  const engine = writingEngineStore.current;
+  if (!engine) return null;
+
+  // Wire up the recognition callback to React state setter
+  engine.onRecognition = (result: RecognitionResult, _rawStrokes: Stroke[]) => {
+    setRecognitionResult(result);
+  };
+
   return (
     <>
       <WritingToolbar engine={engine} onExit={handleExitClick} />
-      
+
       <RecognitionOverlay
         result={recognitionResult}
         onAccept={handleAcceptRecognition}
         onDismiss={handleDismissRecognition}
       />
-      
+
       {showExit && (
-        <WritingExitDialog 
-          onSave={handleSave} 
-          onDiscard={handleDiscard} 
-          onCancel={handleCancel} 
+        <WritingExitDialog
+          onSave={handleSave}
+          onDiscard={handleDiscard}
+          onCancel={handleCancel}
         />
       )}
     </>
