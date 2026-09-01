@@ -1,25 +1,11 @@
-import { StorageService } from '../services/storageService';
-import { EventBus } from './EventBus';
-import { CanvasManager } from './CanvasManager';
+import { DocumentManager } from '../workspace/document/DocumentManager';
 
 export class AutoSaveManager {
-  private engine: CanvasManager;
-  private currentDrawingId: string | null = null;
-  private userId: string;
+  private docManager: DocumentManager;
   private timer: NodeJS.Timeout | null = null;
-  private isDirty: boolean = false;
-  // Keep a reference to the listener so it can be removed in destroy()
-  private onHistoryChanged: () => void;
 
-  constructor(engine: CanvasManager, currentDrawingId: string | null, userId: string) {
-    this.engine = engine;
-    this.currentDrawingId = currentDrawingId;
-    this.userId = userId;
-
-    this.onHistoryChanged = () => {
-      this.isDirty = true;
-    };
-    this.engine.eventBus.on('history:changed', this.onHistoryChanged);
+  constructor(docManager: DocumentManager) {
+    this.docManager = docManager;
 
     // Run interval every 30s
     this.timer = setInterval(() => {
@@ -28,33 +14,26 @@ export class AutoSaveManager {
   }
 
   public setDrawingId(id: string | null) {
-    this.currentDrawingId = id;
+    // Kept for signature compatibility but not strictly needed 
+    // as DocumentManager holds the ID.
   }
 
   public async triggerSave() {
-    if (!this.isDirty || !this.currentDrawingId) return;
+    if (this.docManager.getStatus() !== 'dirty') return;
 
     try {
-      this.engine.eventBus.emit('autosave:start', null);
-      const state = this.engine.toJSON();
-      const canvas = (this.engine as any).canvas;
-      const previewUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.5 });
+      this.docManager.eventBus.emit('autosave:start', null);
       
-      const brushSettings = { color: '#000', size: 1, tool: 'brush' }; // dummy for auto-save
+      const success = await this.docManager.saveDocument();
       
-      await StorageService.saveDrawing(
-        this.userId,
-        this.currentDrawingId, 
-        'Auto Save', 
-        JSON.stringify(state), 
-        previewUrl, 
-        brushSettings
-      );
-      this.isDirty = false;
-      this.engine.eventBus.emit('autosave:success', null);
+      if (success) {
+        this.docManager.eventBus.emit('autosave:success', null);
+      } else {
+        this.docManager.eventBus.emit('autosave:error', new Error('Failed to save document'));
+      }
     } catch (error) {
       console.error('AutoSave failed:', error);
-      this.engine.eventBus.emit('autosave:error', error);
+      this.docManager.eventBus.emit('autosave:error', error);
     }
   }
 
@@ -63,7 +42,5 @@ export class AutoSaveManager {
       clearInterval(this.timer);
       this.timer = null;
     }
-    // Remove the event listener to prevent orphaned subscriptions on re-mount
-    this.engine.eventBus.off('history:changed', this.onHistoryChanged);
   }
 }

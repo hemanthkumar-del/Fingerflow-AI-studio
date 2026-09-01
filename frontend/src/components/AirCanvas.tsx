@@ -26,6 +26,7 @@ import { PreferencesModal } from './PreferencesModal';
 import { AboutDialog } from './AboutDialog';
 import { HelpCenter } from './onboarding/HelpCenter';
 import { SettingsManager } from '../services/gestureSettings';
+import { DocumentManager } from '../workspace/document/DocumentManager';
 import { StorageService, DrawingRecord } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { VideoOff, RefreshCw } from 'lucide-react';
@@ -125,9 +126,11 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const [writingDevStats, setWritingDevStats] = useState({ fps: 0, state: 'IDLE', score: 0 });
   const lastTrackingUpdateRef = useRef<number>(0);
 
-  // Drawing Metadata & Cloud Saving state
+  // Document & Persistence state
+  const docManagerRef = useRef<DocumentManager | null>(null);
+  const [docStatus, setDocStatus] = useState<string>('clean');
   const [activeDrawingId, setActiveDrawingId] = useState<string | null>(initialDrawing?.id || null);
-  const [drawingTitle, setDrawingTitle] = useState<string>(initialDrawing?.title || 'Untitled Air Sketch');
+  const [drawingTitle, setDrawingTitle] = useState<string>(initialDrawing?.title || 'Untitled Workspace');
   const [isSavingCloud, setIsSavingCloud] = useState<boolean>(false);
 
   // 1. Initialize Modular Canvas Engine
@@ -141,7 +144,22 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     });
     engineRef.current = engine;
     
-    const autoSave = new AutoSaveManager(engine, activeDrawingId, user?.uid || 'local');
+    const docManager = new DocumentManager(engine);
+    if (user?.uid) {
+      docManager.setUserId(user.uid);
+    }
+    
+    // Load initial drawing if provided
+    if (initialDrawing && initialDrawing.fabricJson) {
+      docManager.deserializeDocument(initialDrawing.fabricJson);
+      // Ensure the title and ID sync up
+      docManager.getDocument().metadata.id = initialDrawing.id;
+      docManager.renameDocument(initialDrawing.title || 'Untitled Workspace');
+    }
+    
+    docManagerRef.current = docManager;
+
+    const autoSave = new AutoSaveManager(docManager);
     autoSaveRef.current = autoSave;
     
     const replay = new ReplayEngine(engine);
@@ -158,13 +176,25 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       setActiveLayerId(state.activeLayerId);
     };
 
+    const onDocStatusChanged = (status: string) => {
+      setDocStatus(status);
+    };
+
+    const onDocRenamed = (title: string) => {
+      setDrawingTitle(title);
+    };
+
     engine.eventBus.on('history:changed', onHistoryChanged);
     engine.eventBus.on('layers:changed', updateLayers);
+    docManager.eventBus.on('document:status_changed', onDocStatusChanged);
+    docManager.eventBus.on('document:renamed', onDocRenamed);
 
     return () => {
       autoSaveRef.current?.destroy();
       engine.eventBus.off('history:changed', onHistoryChanged);
       engine.eventBus.off('layers:changed', updateLayers);
+      docManager.eventBus.off('document:status_changed', onDocStatusChanged);
+      docManager.eventBus.off('document:renamed', onDocRenamed);
       engine.dispose();
     };
   }, []);
@@ -224,30 +254,21 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
   // Save Drawing to Cloud Storage & Firestore
   const handleSaveCloud = useCallback(async () => {
-    if (!engineRef.current || !user) return;
+    if (!docManagerRef.current || !user) return;
+    setIsSavingCloud(true);
     try {
-      setIsSavingCloud(true);
-      const fabricJson = JSON.stringify(engineRef.current.toJSON());
-      const imageB64 = engineRef.current.toDataURL({ format: 'png', quality: 0.9 });
-
-      const savedRecord = await StorageService.saveDrawing(
-        user.uid,
-        activeDrawingId,
-        drawingTitle,
-        fabricJson,
-        imageB64,
-        { color: brushColor, size: brushSize, tool }
-      );
-
-      setActiveDrawingId(savedRecord.id);
-      autoSaveRef.current?.setDrawingId(savedRecord.id);
-      showToast('success', 'Drawing saved to cloud!');
+      const success = await docManagerRef.current.saveDocument();
+      if (success) {
+        showToast('success', 'Document saved to cloud!');
+      } else {
+        showToast('error', 'Cloud save failed.');
+      }
     } catch (error) {
-      showToast('error', 'Cloud save failed. Saved to local storage.');
+      showToast('error', 'Cloud save failed.');
     } finally {
       setIsSavingCloud(false);
     }
-  }, [user, activeDrawingId, drawingTitle, brushColor, brushSize, tool]);
+  }, [user]);
 
   // Export Canvas Action
   const handleExport = useCallback(() => {
@@ -671,8 +692,49 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   }, []);
 
   return (
-    <WorkspaceProvider engine={engineRef.current}>
+    <WorkspaceProvider engine={engineRef.current} docManager={docManagerRef.current}>
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#090d16' }}>
+        {/* Document Header */}
+        <div style={{
+          position: 'absolute',
+          top: 16,
+          left: 16,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(12px)',
+          padding: '8px 16px',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <input
+            type="text"
+            value={drawingTitle}
+            onChange={(e) => {
+              setDrawingTitle(e.target.value);
+              docManagerRef.current?.renameDocument(e.target.value);
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#f8fafc',
+              fontSize: '1rem',
+              fontWeight: 600,
+              outline: 'none',
+              width: '180px'
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#94a3b8' }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              backgroundColor: docStatus === 'saved' ? '#10b981' : docStatus === 'saving' ? '#f59e0b' : docStatus === 'error' ? '#ef4444' : '#6366f1'
+            }} />
+            {docStatus === 'saved' ? 'Saved' : docStatus === 'saving' ? 'Saving...' : docStatus === 'dirty' ? 'Unsaved changes' : docStatus === 'error' ? 'Save failed' : 'Clean'}
+          </div>
+        </div>
+
         <ModeSwitcher />
         <WritingUI 
           onUndo={handleUndo}
