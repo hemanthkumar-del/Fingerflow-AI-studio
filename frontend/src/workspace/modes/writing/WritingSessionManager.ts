@@ -15,14 +15,6 @@ export class WritingSessionManager {
     this.sessionObjects.push(obj);
   }
 
-  public onObjectAdded(obj: fabric.Object) {
-    if ((obj as any).get('writingSession')) {
-      if (!this.sessionObjects.includes(obj)) {
-         this.sessionObjects.push(obj);
-      }
-    }
-  }
-
   public onObjectRemoved(obj: fabric.Object) {
     this.sessionObjects = this.sessionObjects.filter(o => o !== obj);
   }
@@ -33,7 +25,7 @@ export class WritingSessionManager {
       canvas.remove(obj);
     });
     this.sessionObjects = [];
-    canvas.renderAll();
+    (canvas as any).requestRenderAll?.() ?? canvas.renderAll();
   }
 
   public commitSession() {

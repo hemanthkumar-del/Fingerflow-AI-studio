@@ -23,10 +23,12 @@ interface Landmark {
 
 // ── Tuning constants ─────────────────────────────────────────────────────────
 
-/** Frames of consistent detection required to START writing */
-const INDEX_START_FRAMES = 2;
-/** Frames of negative detection required to STOP writing */
-const INDEX_RELEASE_FRAMES = 4;
+/** Frames of consistent detection required to START writing.
+ *  1 frame = immediate response (~16ms at 60fps). */
+const INDEX_START_FRAMES = 1;
+/** Frames of negative detection required to STOP writing.
+ *  4–5 frames = ~67–80ms stop delay, preventing jitter from brief misdetections. */
+const INDEX_RELEASE_FRAMES = 5;
 
 /** Frames of consistent palm detection required to START erasing */
 const PALM_START_FRAMES = 2;
@@ -34,13 +36,7 @@ const PALM_START_FRAMES = 2;
 const PALM_RELEASE_FRAMES = 3;
 
 /** Max consecutive frames of tracking loss before we give up and IDLE */
-const TRACKING_LOSS_TOLERANCE = 4;
-
-/**
- * Minimum ratio of fingertip-to-MCP distance relative to palm size
- * for a finger to be considered "extended".
- */
-const EXTENSION_THRESHOLD = 0.7;
+const TRACKING_LOSS_TOLERANCE = 5;
 
 /**
  * How many non-index fingers must be curled for index-only detection.
@@ -182,10 +178,12 @@ export class WritingIndexDetector {
   // ── Geometric detection helpers ──────────────────────────────────────────
 
   /**
-   * Detect whether the index finger is clearly extended and the hand
-   * is in a "pointing" posture.
+   * Detect whether the index finger is clearly extended.
    *
-   * Uses fingertip-to-MCP distances relative to palm size.
+   * Uses two scale-invariant measures:
+   * 1. Fingertip-to-MCP distance (finger unfolded = far from base)
+   * 2. PIP→TIP direction vs PIP→MCP direction (curled = reverse direction)
+   * Requires ≥2 other fingers to be curled.
    */
   private detectIndexExtended(lm: Landmark[]): boolean {
     // MediaPipe hand landmark indices:
@@ -193,14 +191,18 @@ export class WritingIndexDetector {
     const palmSize = this.dist3(lm[0], lm[9]); // Wrist to middle MCP
     if (palmSize < 1e-6) return false;
 
-    // Index finger: tip must be far from MCP
-    // Relaxed threshold to 0.55 to allow natural writing angles
+    // Index tip-to-MCP distance ratio (primary extension test)
     const indexExtension = this.dist3(lm[5], lm[8]) / palmSize;
-    if (indexExtension < 0.55) return false;
+    if (indexExtension < 0.5) return false;
+
+    // Secondary test: Index tip should be further from wrist than PIP
+    // This handles sideways or tilted hands that could fool the distance ratio
+    const pipToWrist = this.dist3(lm[0], lm[6]);
+    const tipToWrist = this.dist3(lm[0], lm[8]);
+    if (tipToWrist < pipToWrist * 0.85) return false; // TIP is not beyond PIP
 
     // Count curled fingers (middle, ring, pinky)
-    // A finger is considered curled if its tip is relatively close to its MCP
-    // compared to a fully extended finger.
+    // Curled = tip significantly closer to wrist than fully extended
     const nonIndexFingers = [
       { mcp: 9, tip: 12 },   // middle
       { mcp: 13, tip: 16 },  // ring
@@ -219,7 +221,7 @@ export class WritingIndexDetector {
   }
 
   /**
-   * Detect whether the hand is an open palm (all fingers extended and spread).
+   * Detect whether the hand is an open palm (all fingers extended).
    */
   private detectOpenPalm(lm: Landmark[]): boolean {
     const palmSize = this.dist3(lm[0], lm[9]);
@@ -244,7 +246,7 @@ export class WritingIndexDetector {
   private dist3(a: Landmark, b: Landmark): number {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
-    const dz = (a.z - b.z) * 0.4; // z is less reliable, reduce weight further
+    const dz = (a.z - b.z) * 0.3; // z is less reliable, reduce weight further
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 }

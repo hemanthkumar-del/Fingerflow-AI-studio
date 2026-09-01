@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useWorkspace } from './WorkspaceContext';
 import { writingEngineStore } from './writingEngineStore';
 import { WritingStudioPanel } from './modes/writing/WritingStudioPanel';
 import { WritingExitDialog } from './modes/writing/WritingExitDialog';
 import { WritingBottomBar } from './modes/writing/WritingBottomBar';
+import { WritingTrackingHUD } from './modes/writing/WritingTrackingHUD';
 import { RecognitionOverlay } from '../components/recognition/RecognitionOverlay';
 import type { RecognitionResult } from '../recognition/RecognitionResult';
 import type { Stroke } from '../recognition/Stroke';
@@ -28,6 +29,12 @@ interface WritingUIProps {
   isSavingCloud: boolean;
   isCameraActive: boolean;
   onToggleCamera: () => void;
+  /** Normalized palm size (0-1) for tracking quality feedback */
+  writingPalmSize?: number;
+  /** Whether a hand is currently detected by MediaPipe */
+  isHandDetected?: boolean;
+  /** Developer mode stats */
+  devStats?: { fps: number, state: string, score: number };
 }
 
 export const WritingUI: React.FC<WritingUIProps> = (props) => {
@@ -35,6 +42,8 @@ export const WritingUI: React.FC<WritingUIProps> = (props) => {
   const { currentModeId, setMode } = useWorkspace();
   const [showExit, setShowExit] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  // Ref to prevent reassigning onRecognition callback every render
+  const recognitionCallbackSetRef = useRef(false);
 
   const handleExitClick = useCallback(() => {
     const engine = writingEngineStore.current;
@@ -82,7 +91,25 @@ export const WritingUI: React.FC<WritingUIProps> = (props) => {
     if (currentModeId !== 'writing') {
       setShowExit(false);
       setRecognitionResult(null);
+      recognitionCallbackSetRef.current = false;
     }
+  }, [currentModeId]);
+
+  // Wire up the recognition callback exactly once per engine instance,
+  // not on every render (which would create a new lambda and GC pressure).
+  useEffect(() => {
+    const engine = writingEngineStore.current;
+    if (engine && currentModeId === 'writing') {
+      engine.onRecognition = (result: RecognitionResult, _rawStrokes: Stroke[]) => {
+        setRecognitionResult(result);
+      };
+      recognitionCallbackSetRef.current = true;
+    }
+    return () => {
+      // Clean up when Writing Mode exits or engine changes
+      const eng = writingEngineStore.current;
+      if (eng) eng.onRecognition = null;
+    };
   }, [currentModeId]);
 
   // ── Early return AFTER all hooks ────────────────────────────────────────
@@ -91,14 +118,16 @@ export const WritingUI: React.FC<WritingUIProps> = (props) => {
   const engine = writingEngineStore.current;
   if (!engine) return null;
 
-  // Wire up the recognition callback to React state setter
-  engine.onRecognition = (result: RecognitionResult, _rawStrokes: Stroke[]) => {
-    setRecognitionResult(result);
-  };
-
   return (
     <>
       <WritingStudioPanel engine={engine} onExit={handleExitClick} />
+
+      {/* Tracking quality indicator — only shown when tracking is poor or Dev Mode is on */}
+      <WritingTrackingHUD
+        palmSize={props.writingPalmSize ?? 0}
+        isHandDetected={props.isHandDetected ?? false}
+        devStats={props.devStats}
+      />
 
       <RecognitionOverlay
         result={recognitionResult}

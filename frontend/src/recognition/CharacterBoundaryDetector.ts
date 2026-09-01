@@ -118,13 +118,4 @@ export class CharacterBoundaryDetector {
       this.completionTimer = null;
     }
   }
-
-  private computeSpatialGap(candidate: CharacterCandidate, newStroke: Stroke): number {
-    const lastStroke = candidate.strokes[candidate.strokes.length - 1];
-    const lastEnd = lastStroke.endPoint;
-    const newStart = newStroke.startPoint;
-    const dx = newStart.x - lastEnd.x;
-    const dy = newStart.y - lastEnd.y;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
 }

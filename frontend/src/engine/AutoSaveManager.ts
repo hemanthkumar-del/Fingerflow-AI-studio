@@ -8,15 +8,18 @@ export class AutoSaveManager {
   private userId: string;
   private timer: NodeJS.Timeout | null = null;
   private isDirty: boolean = false;
+  // Keep a reference to the listener so it can be removed in destroy()
+  private onHistoryChanged: () => void;
 
   constructor(engine: CanvasManager, currentDrawingId: string | null, userId: string) {
     this.engine = engine;
     this.currentDrawingId = currentDrawingId;
     this.userId = userId;
 
-    this.engine.eventBus.on('history:changed', () => {
+    this.onHistoryChanged = () => {
       this.isDirty = true;
-    });
+    };
+    this.engine.eventBus.on('history:changed', this.onHistoryChanged);
 
     // Run interval every 30s
     this.timer = setInterval(() => {
@@ -60,5 +63,7 @@ export class AutoSaveManager {
       clearInterval(this.timer);
       this.timer = null;
     }
+    // Remove the event listener to prevent orphaned subscriptions on re-mount
+    this.engine.eventBus.off('history:changed', this.onHistoryChanged);
   }
 }

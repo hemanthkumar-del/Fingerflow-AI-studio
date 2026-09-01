@@ -31,10 +31,10 @@ export const Minimap: React.FC<MinimapProps> = ({ engine }) => {
       
       const objects = canvas.getObjects();
       if (objects.length === 0) {
-        setHasObjects(false);
+        setHasObjects(prev => prev ? false : prev);
         return;
       }
-      setHasObjects(true);
+      setHasObjects(prev => !prev ? true : prev);
 
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       objects.forEach(obj => {

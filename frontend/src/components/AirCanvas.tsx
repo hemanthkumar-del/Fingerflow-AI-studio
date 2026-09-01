@@ -106,6 +106,25 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
   const frameTimesRef = useRef<number[]>([]);
   const lastFrameTimeRef = useRef<number>(performance.now());
 
+  // Performance: throttle HUD React setState to avoid 600 re-renders/second
+  // HUD state is read every frame but we only push to React every ~150ms or on gesture change
+  const lastHudUpdateRef = useRef<number>(0);
+  const lastGestureTypeRef = useRef<GestureType>('NONE');
+  const lastHandDetectedRef = useRef<boolean>(false);
+
+  // Stale-closure-safe refs for tool/brush inside camera loop
+  // These are kept in sync by the tool/brush useEffect below
+  const toolRef = useRef<'brush' | 'eraser' | 'selection' | 'shape'>('brush');
+  const brushColorRef = useRef<string>('#6366f1');
+  const brushSizeRef = useRef<number>(8);
+
+  // Writing Mode tracking quality (palm size normalized to frame height)
+  // Updated inside the MediaPipe loop; read by WritingTrackingHUD via state throttle
+  const writingPalmSizeRef = useRef<number>(0);
+  const [writingPalmSize, setWritingPalmSize] = useState<number>(0);
+  const [writingDevStats, setWritingDevStats] = useState({ fps: 0, state: 'IDLE', score: 0 });
+  const lastTrackingUpdateRef = useRef<number>(0);
+
   // Drawing Metadata & Cloud Saving state
   const [activeDrawingId, setActiveDrawingId] = useState<string | null>(initialDrawing?.id || null);
   const [drawingTitle, setDrawingTitle] = useState<string>(initialDrawing?.title || 'Untitled Air Sketch');
@@ -150,12 +169,16 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     };
   }, []);
 
-  // Sync tool and brush settings to engine
+  // Sync tool and brush settings to engine AND to stale-closure-safe refs
   useEffect(() => {
     if (!engineRef.current) return;
     engineRef.current.tool.setTool(tool);
     engineRef.current.brush.setColor(brushColor);
     engineRef.current.brush.setSize(brushSize);
+    // Keep refs in sync so the MediaPipe loop can read without stale closure issues
+    toolRef.current = tool;
+    brushColorRef.current = brushColor;
+    brushSizeRef.current = brushSize;
   }, [tool, brushColor, brushSize]);
 
   // Undo Action
@@ -290,7 +313,7 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
     });
 
     hands.onResults((results: mpHands.Results) => {
-      // FPS Counter calculation
+      // FPS Counter calculation (always runs for accuracy)
       const now = performance.now();
       const delta = now - lastFrameTimeRef.current;
       lastFrameTimeRef.current = now;
@@ -298,7 +321,10 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       if (frameTimesRef.current.length > 30) frameTimesRef.current.shift();
       const avgDelta = frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length;
       const currentFps = Math.min(60, Math.round(1000 / (avgDelta || 16.6)));
-      setFps(currentFps);
+      // Only push FPS to React every 500ms (it's a display metric, not real-time critical)
+      if (now - lastHudUpdateRef.current > 500) {
+        setFps(currentFps);
+      }
 
       const overlay = overlayCanvasRef.current;
       if (!overlay) return;
@@ -311,43 +337,16 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       ctx.clearRect(0, 0, w, h);
 
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        setIsHandDetected(true);
+        // Only push handDetected=true to React if it changed
+        if (!lastHandDetectedRef.current) {
+          setIsHandDetected(true);
+          lastHandDetectedRef.current = true;
+        }
         
         // Mirror X for all landmarks in all hands
         const mirroredHands = results.multiHandLandmarks.map(hand => 
           hand.map(lm => ({ x: 1 - lm.x, y: lm.y, z: lm.z }))
         );
-
-        // Classify Gesture using Phase 8 Intelligence Engine
-        const gestureResult = gestureEngineRef.current.update(mirroredHands, results.multiHandedness, now);
-        
-        gestureRef.current = gestureResult.gesture;
-        setCurrentGesture(gestureResult.gesture);
-        setConfidence(gestureResult.confidence);
-        setFingerState(gestureResult.fingerState);
-        setVelocity(gestureResult.velocity);
-        setHandCount(gestureResult.handCount);
-        setPrimaryHand(gestureResult.primaryHand);
-        setCandidateGestures(gestureResult.candidateGestures);
-        setCooldownActive(gestureResult.cooldownActive);
-
-        // Handle Action Trigger (from GestureRegistry)
-        if (gestureResult.actionTriggered) {
-          const action = gestureResult.actionTriggered;
-          playConfirmationSound();
-          setGestureOverlay({ icon: action.icon, name: action.name, durationMs: SettingsManager.getSettings().confirmationDurationMs });
-
-          switch (action.action) {
-            case 'UNDO': handleUndo(); break;
-            case 'REDO': handleRedo(); break;
-            case 'SAVE_CLOUD': handleSaveCloud(); break;
-            case 'EXPORT_PNG': handleExport(); break;
-            case 'CLEAR_CANVAS': handleClear(); break;
-            case 'ERASER_MODE': setTool('eraser'); break;
-            // Add other logical hooks when those features are fully built in the UI
-            default: break;
-          }
-        }
 
         const primaryLandmarks = mirroredHands[0];
 
@@ -358,14 +357,25 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
         const palmY = primaryLandmarks[9].y * h;
 
         // ---- WRITING MODE INTERCEPT ----
+        // Skip GestureEngine classification entirely in Writing Mode —
+        // Writing Mode only needs WritingIndexDetector (no gesture analysis needed).
         if (currentModeRef.current === 'writing') {
           const wEngine = writingEngineStore.current;
           const detector = writingDetectorStore.current;
 
+          // Calculate palm size (normalized to frame height) for tracking quality indicator
+          // dist(WRIST[0], MIDDLE_MCP[9]) / frame height gives a scale-invariant palm size estimate
+          const palmLm0 = primaryLandmarks[0];
+          const palmLm9 = primaryLandmarks[9];
+          const rawPalmDist = Math.sqrt(
+            Math.pow((palmLm0.x - palmLm9.x) * w, 2) +
+            Math.pow((palmLm0.y - palmLm9.y) * h, 2)
+          );
+          const normalizedPalmSize = rawPalmDist / h;
+          writingPalmSizeRef.current = normalizedPalmSize;
+
           if (wEngine && detector) {
             // Use the dedicated geometric detector on raw landmarks.
-            // It has its own temporal hysteresis and tracking-loss tolerance,
-            // so it does NOT depend on the general GestureEngine's classification.
             const writingState = detector.update(primaryLandmarks);
 
             if (writingState === 'WRITE') {
@@ -422,19 +432,71 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
               ctx.fill();
             }
           }
+          // Throttle writing HUD update to ~5 times/sec (200ms) to prevent re-renders
+          if (now - lastTrackingUpdateRef.current > 200) {
+            lastTrackingUpdateRef.current = now;
+            setWritingPalmSize(writingPalmSizeRef.current);
+            // Developer Mode stats
+            const score = results.multiHandedness && results.multiHandedness.length > 0 ? results.multiHandedness[0].score : 0;
+            setWritingDevStats({
+              fps: currentFps,
+              state: detector ? (detector as any).currentState || 'IDLE' : 'IDLE',
+              score: score
+            });
+          }
           return; // Skip all Canvas Mode logic
         }
         // ---- END WRITING MODE INTERCEPT ----
 
+        // ── Canvas Mode only: Classify Gesture using Phase 8 Intelligence Engine ──
+        // This block is SKIPPED in Writing Mode (already returned above).
+        const gestureResult = gestureEngineRef.current.update(mirroredHands, results.multiHandedness, now);
+        gestureRef.current = gestureResult.gesture;
+
+        // Throttle HUD updates: push to React every ~150ms OR immediately on gesture change.
+        // This eliminates ~600 re-renders/sec down to ~7/sec for the HUD.
+        const gestureChanged = gestureResult.gesture !== lastGestureTypeRef.current;
+        const hudUpdateDue = (now - lastHudUpdateRef.current) > 150;
+        if (gestureChanged || hudUpdateDue) {
+          lastGestureTypeRef.current = gestureResult.gesture;
+          lastHudUpdateRef.current = now;
+          setCurrentGesture(gestureResult.gesture);
+          setConfidence(gestureResult.confidence);
+          setFingerState(gestureResult.fingerState);
+          setVelocity(gestureResult.velocity);
+          setHandCount(gestureResult.handCount);
+          setPrimaryHand(gestureResult.primaryHand);
+          setCandidateGestures(gestureResult.candidateGestures);
+          setCooldownActive(gestureResult.cooldownActive);
+          setFps(currentFps);
+        }
+
+        // Handle Action Trigger (from GestureRegistry)
+        if (gestureResult.actionTriggered) {
+          const action = gestureResult.actionTriggered;
+          playConfirmationSound();
+          setGestureOverlay({ icon: action.icon, name: action.name, durationMs: SettingsManager.getSettings().confirmationDurationMs });
+
+          switch (action.action) {
+            case 'UNDO': handleUndo(); break;
+            case 'REDO': handleRedo(); break;
+            case 'SAVE_CLOUD': handleSaveCloud(); break;
+            case 'EXPORT_PNG': handleExport(); break;
+            case 'CLEAR_CANVAS': handleClear(); break;
+            case 'ERASER_MODE': setTool('eraser'); break;
+            default: break;
+          }
+        }
+
         // Perform Gesture Logic using CanvasManager
         if (gestureResult.gesture === 'SELECTION_MODE') {
-          if (tool !== 'selection') {
+          if (toolRef.current !== 'selection') {
             setTool('selection');
             showToast('info', 'Selection Mode Active');
           }
         }
 
-        if (tool === 'selection') {
+        if (toolRef.current === 'selection') {
           // Handle Selection/Transform Gestures
           const activeSelection = engineRef.current?.getCanvas().getActiveObject();
           const mode = engineRef.current?.selection.getMode() || 'select';
@@ -526,10 +588,14 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           
           if (smoothedPoint) {
             // Draw pointer tracking circle on overlay HUD
+            // Use refs for tool/brushColor/brushSize (stale-closure-safe)
+            const currentTool = toolRef.current;
+            const currentColor = brushColorRef.current;
+            const currentSize = brushSizeRef.current;
             ctx.beginPath();
-            ctx.arc(smoothedPoint.x, smoothedPoint.y, tool === 'eraser' ? brushSize * 1.5 : brushSize / 2 + 4, 0, 2 * Math.PI);
-            ctx.fillStyle = tool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${brushColor}70`;
-            ctx.strokeStyle = tool === 'eraser' ? '#ec4899' : brushColor;
+            ctx.arc(smoothedPoint.x, smoothedPoint.y, currentTool === 'eraser' ? currentSize * 1.5 : currentSize / 2 + 4, 0, 2 * Math.PI);
+            ctx.fillStyle = currentTool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${currentColor}70`;
+            ctx.strokeStyle = currentTool === 'eraser' ? '#ec4899' : currentColor;
             ctx.lineWidth = 2;
             ctx.fill();
             ctx.stroke();
@@ -541,10 +607,13 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
 
           // Pointer overlay when not drawing (HOVER)
           const smoothedPoint = strokeSmootherRef.current.filter(indexX, indexY, now);
+          const currentTool = toolRef.current;
+          const currentColor = brushColorRef.current;
+          const currentSize = brushSizeRef.current;
           ctx.beginPath();
-          ctx.arc(smoothedPoint.x, smoothedPoint.y, tool === 'eraser' ? brushSize * 1.5 : brushSize / 2 + 4, 0, 2 * Math.PI);
-          ctx.fillStyle = tool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${brushColor}70`;
-          ctx.strokeStyle = tool === 'eraser' ? '#ec4899' : brushColor;
+          ctx.arc(smoothedPoint.x, smoothedPoint.y, currentTool === 'eraser' ? currentSize * 1.5 : currentSize / 2 + 4, 0, 2 * Math.PI);
+          ctx.fillStyle = currentTool === 'eraser' ? 'rgba(236, 72, 153, 0.4)' : `${currentColor}70`;
+          ctx.strokeStyle = currentTool === 'eraser' ? '#ec4899' : currentColor;
           ctx.lineWidth = 2;
           ctx.fill();
           ctx.stroke();
@@ -556,10 +625,15 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           }
         }
       } else {
-        setIsHandDetected(false);
-        setCurrentGesture('NONE');
-        setHandCount(0);
-        setPrimaryHand('None');
+        // Hand lost — only push state change if it was previously detected
+        if (lastHandDetectedRef.current) {
+          setIsHandDetected(false);
+          setCurrentGesture('NONE');
+          setHandCount(0);
+          setPrimaryHand('None');
+          lastHandDetectedRef.current = false;
+          lastGestureTypeRef.current = 'NONE';
+        }
         engineRef.current?.endStroke();
         engineRef.current?.beginStroke();
         // Notify the writing detector that tracking was lost this frame
@@ -569,14 +643,16 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       }
     });
 
+    // 640x480 is sufficient for hand landmark accuracy at arm's-length camera distance.
+    // Using 1280x720 doubles the MediaPipe pixel processing cost with no landmark gain.
     const camera = new Camera(videoRef.current, {
       onFrame: async () => {
         if (videoRef.current) {
           await hands.send({ image: videoRef.current });
         }
       },
-      width: 1280,
-      height: 720,
+      width: 640,
+      height: 480,
     });
 
     camera.start();
@@ -585,7 +661,9 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
       camera.stop();
       hands.close();
     };
-  }, [isCameraActive, tool, brushColor, brushSize]);
+  // Only restart camera when camera activation changes.
+  // tool/brushColor/brushSize are now read via refs inside the loop (no stale closure).
+  }, [isCameraActive]);
 
   const getCanvasImage = useCallback((): string | null => {
     if (!engineRef.current) return null;
@@ -608,6 +686,9 @@ export const AirCanvas: React.FC<AirCanvasProps> = ({ initialDrawing, onOpenMyDr
           isSavingCloud={isSavingCloud}
           isCameraActive={isCameraActive}
           onToggleCamera={() => setIsCameraActive((prev) => !prev)}
+          writingPalmSize={writingPalmSize}
+          isHandDetected={isHandDetected}
+          devStats={writingDevStats}
         />
         {/* Hidden/Background Video Element for MediaPipe Processing */}
       <video

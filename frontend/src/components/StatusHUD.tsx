@@ -19,7 +19,7 @@ interface StatusHUDProps {
   cooldownActive: boolean;
 }
 
-export const StatusHUD: React.FC<StatusHUDProps> = ({
+export const StatusHUD: React.FC<StatusHUDProps> = React.memo(({
   fps,
   isHandDetected,
   gesture,
@@ -113,4 +113,4 @@ export const StatusHUD: React.FC<StatusHUDProps> = ({
       )}
     </div>
   );
-};
+});
